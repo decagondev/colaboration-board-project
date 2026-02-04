@@ -2,4 +2,4 @@
  * Sync module interface exports.
  */
 
-export {};
+export * from './ISyncService';

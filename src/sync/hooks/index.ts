@@ -2,4 +2,4 @@
  * Sync module hook exports.
  */
 
-export {};
+export * from './useSync';
