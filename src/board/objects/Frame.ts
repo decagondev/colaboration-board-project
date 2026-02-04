@@ -12,10 +12,7 @@ import type {
   BoundingBox,
   BoardObjectData,
 } from '../interfaces/IBoardObject';
-import type {
-  ITransformable,
-  Transform,
-} from '../interfaces/ITransformable';
+import type { ITransformable, Transform } from '../interfaces/ITransformable';
 import type {
   ISelectable,
   SelectionState,
@@ -511,7 +508,10 @@ export class Frame
       },
       {
         handle: 'right',
-        position: { x: bounds.x + bounds.width, y: bounds.y + bounds.height / 2 },
+        position: {
+          x: bounds.x + bounds.width,
+          y: bounds.y + bounds.height / 2,
+        },
         cursor: HANDLE_CURSORS.right,
       },
       {
@@ -521,7 +521,10 @@ export class Frame
       },
       {
         handle: 'bottom',
-        position: { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height },
+        position: {
+          x: bounds.x + bounds.width / 2,
+          y: bounds.y + bounds.height,
+        },
         cursor: HANDLE_CURSORS.bottom,
       },
       {

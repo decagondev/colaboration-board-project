@@ -4,7 +4,11 @@
  * Concrete command implementations for board object operations.
  */
 
-import type { ICommand, CommandType, IBatchCommand } from '../interfaces/ICommand';
+import type {
+  ICommand,
+  CommandType,
+  IBatchCommand,
+} from '../interfaces/ICommand';
 import type { IBoardObject, Position, Size } from '../interfaces/IBoardObject';
 import type { ColorScheme } from '../interfaces/IColorable';
 import { generateUUID } from '@shared/utils/uuid';
@@ -154,7 +158,9 @@ export class MoveObjectsCommand extends BaseCommand {
     this._newPositions = new Map(newPositions);
     this._updatePosition = updatePosition;
     this.description =
-      objectIds.length === 1 ? 'Move object' : `Move ${objectIds.length} objects`;
+      objectIds.length === 1
+        ? 'Move object'
+        : `Move ${objectIds.length} objects`;
   }
 
   execute(): void {
@@ -206,7 +212,11 @@ export class ResizeObjectCommand extends BaseCommand {
   private _newSize: Size;
   private _oldPosition: Position;
   private _newPosition: Position;
-  private _updateSize: (objectId: string, size: Size, position: Position) => void;
+  private _updateSize: (
+    objectId: string,
+    size: Size,
+    position: Position
+  ) => void;
 
   /**
    * Create a new ResizeObjectCommand.
@@ -361,7 +371,10 @@ export class ChangeColorCommand extends BaseCommand {
   private _objectId: string;
   private _oldColors: Partial<ColorScheme>;
   private _newColors: Partial<ColorScheme>;
-  private _updateColors: (objectId: string, colors: Partial<ColorScheme>) => void;
+  private _updateColors: (
+    objectId: string,
+    colors: Partial<ColorScheme>
+  ) => void;
 
   /**
    * Create a new ChangeColorCommand.
@@ -587,17 +600,12 @@ export class BatchCommand implements IBatchCommand {
    * @param executedBy - User executing the command
    * @param description - Optional description
    */
-  constructor(
-    commands: ICommand[],
-    executedBy: string,
-    description?: string
-  ) {
+  constructor(commands: ICommand[], executedBy: string, description?: string) {
     this.id = generateUUID();
     this.timestamp = Date.now();
     this.executedBy = executedBy;
     this.commands = commands;
-    this.description =
-      description ?? `Batch of ${commands.length} operations`;
+    this.description = description ?? `Batch of ${commands.length} operations`;
   }
 
   execute(): void {

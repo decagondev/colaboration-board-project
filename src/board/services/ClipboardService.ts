@@ -4,7 +4,11 @@
  * Manages copy/paste operations for board objects.
  */
 
-import type { IBoardObject, Position, BoundingBox } from '../interfaces/IBoardObject';
+import type {
+  IBoardObject,
+  Position,
+  BoundingBox,
+} from '../interfaces/IBoardObject';
 
 /**
  * Clipboard content with metadata.
@@ -165,7 +169,8 @@ export class ClipboardService implements IClipboardService {
     };
 
     this._pasteCount++;
-    const stackOffset = this._isCut && this._pasteCount === 1 ? 0 : 20 * this._pasteCount;
+    const stackOffset =
+      this._isCut && this._pasteCount === 1 ? 0 : 20 * this._pasteCount;
 
     const pastedObjects = this._content.objects.map((obj) => {
       const clone = obj.clone();

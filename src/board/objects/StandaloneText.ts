@@ -12,20 +12,14 @@ import type {
   BoundingBox,
   BoardObjectData,
 } from '../interfaces/IBoardObject';
-import type {
-  ITransformable,
-  Transform,
-} from '../interfaces/ITransformable';
+import type { ITransformable, Transform } from '../interfaces/ITransformable';
 import type {
   ISelectable,
   SelectionState,
   SelectionHandle,
   HandlePosition,
 } from '../interfaces/ISelectable';
-import type {
-  IEditable,
-  EditMode,
-} from '../interfaces/IEditable';
+import type { IEditable, EditMode } from '../interfaces/IEditable';
 import type { IColorable, Color, ColorScheme } from '../interfaces/IColorable';
 import {
   DEFAULT_MIN_SIZE,
@@ -523,7 +517,10 @@ export class StandaloneText
       },
       {
         handle: 'right',
-        position: { x: bounds.x + bounds.width, y: bounds.y + bounds.height / 2 },
+        position: {
+          x: bounds.x + bounds.width,
+          y: bounds.y + bounds.height / 2,
+        },
         cursor: HANDLE_CURSORS.right,
       },
       {
@@ -533,7 +530,10 @@ export class StandaloneText
       },
       {
         handle: 'bottom',
-        position: { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height },
+        position: {
+          x: bounds.x + bounds.width / 2,
+          y: bounds.y + bounds.height,
+        },
         cursor: HANDLE_CURSORS.bottom,
       },
       {
@@ -594,7 +594,9 @@ export class StandaloneText
   }
 
   hasUnsavedChanges(): boolean {
-    return this._content !== this._originalContent && this._editMode === 'editing';
+    return (
+      this._content !== this._originalContent && this._editMode === 'editing'
+    );
   }
 
   readonly isEditable = true;

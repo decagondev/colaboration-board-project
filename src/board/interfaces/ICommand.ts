@@ -169,7 +169,8 @@ export interface ICommandHistory {
 /**
  * Default command history options.
  */
-export const DEFAULT_COMMAND_HISTORY_OPTIONS: Required<CommandHistoryOptions> = {
-  maxHistorySize: 100,
-  mergeTimeWindow: 500,
-};
+export const DEFAULT_COMMAND_HISTORY_OPTIONS: Required<CommandHistoryOptions> =
+  {
+    maxHistorySize: 100,
+    mergeTimeWindow: 500,
+  };

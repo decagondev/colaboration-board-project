@@ -121,7 +121,10 @@ describe('LassoOverlayComponent', () => {
 
     it('should accept custom fill opacity', () => {
       render(
-        <LassoOverlayComponent lassoState={activeLassoState} fillOpacity={0.5} />
+        <LassoOverlayComponent
+          lassoState={activeLassoState}
+          fillOpacity={0.5}
+        />
       );
 
       const rect = screen.getByTestId('konva-rect');

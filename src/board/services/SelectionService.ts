@@ -82,9 +82,10 @@ export class SelectionService implements ISelectionService {
         if (this._selectedIds.has(objectId)) {
           this._selectedIds.delete(objectId);
           if (this._primarySelectedId === objectId) {
-            this._primarySelectedId = this._selectedIds.size > 0
-              ? Array.from(this._selectedIds)[0]
-              : null;
+            this._primarySelectedId =
+              this._selectedIds.size > 0
+                ? Array.from(this._selectedIds)[0]
+                : null;
           }
         } else {
           this._selectedIds.add(objectId);
@@ -97,9 +98,10 @@ export class SelectionService implements ISelectionService {
       case 'remove':
         this._selectedIds.delete(objectId);
         if (this._primarySelectedId === objectId) {
-          this._primarySelectedId = this._selectedIds.size > 0
-            ? Array.from(this._selectedIds)[0]
-            : null;
+          this._primarySelectedId =
+            this._selectedIds.size > 0
+              ? Array.from(this._selectedIds)[0]
+              : null;
         }
         break;
     }
@@ -142,10 +144,14 @@ export class SelectionService implements ISelectionService {
             this._selectedIds.add(id);
           }
         }
-        if (this._primarySelectedId && !this._selectedIds.has(this._primarySelectedId)) {
-          this._primarySelectedId = this._selectedIds.size > 0
-            ? Array.from(this._selectedIds)[0]
-            : null;
+        if (
+          this._primarySelectedId &&
+          !this._selectedIds.has(this._primarySelectedId)
+        ) {
+          this._primarySelectedId =
+            this._selectedIds.size > 0
+              ? Array.from(this._selectedIds)[0]
+              : null;
         }
         break;
 
@@ -153,10 +159,14 @@ export class SelectionService implements ISelectionService {
         for (const id of objectIds) {
           this._selectedIds.delete(id);
         }
-        if (this._primarySelectedId && !this._selectedIds.has(this._primarySelectedId)) {
-          this._primarySelectedId = this._selectedIds.size > 0
-            ? Array.from(this._selectedIds)[0]
-            : null;
+        if (
+          this._primarySelectedId &&
+          !this._selectedIds.has(this._primarySelectedId)
+        ) {
+          this._primarySelectedId =
+            this._selectedIds.size > 0
+              ? Array.from(this._selectedIds)[0]
+              : null;
         }
         break;
     }
@@ -272,7 +282,7 @@ export class SelectionService implements ISelectionService {
     objectIds: string[],
     intersectionTest: (objectId: string, bounds: BoundingBox) => boolean
   ): string[] {
-    return objectIds.filter(id => intersectionTest(id, bounds));
+    return objectIds.filter((id) => intersectionTest(id, bounds));
   }
 
   /**
@@ -281,7 +291,9 @@ export class SelectionService implements ISelectionService {
    * @param callback - Function called when selection changes
    * @returns Unsubscribe function
    */
-  onSelectionChange(callback: (event: SelectionChangeEvent) => void): () => void {
+  onSelectionChange(
+    callback: (event: SelectionChangeEvent) => void
+  ): () => void {
     this._listeners.add(callback);
     return () => {
       this._listeners.delete(callback);

@@ -20,10 +20,7 @@ export {
   BatchCommand,
 } from './BoardCommands';
 
-export {
-  ClipboardService,
-  createClipboardService,
-} from './ClipboardService';
+export { ClipboardService, createClipboardService } from './ClipboardService';
 export type {
   ClipboardContent,
   ClipboardChangeEvent,

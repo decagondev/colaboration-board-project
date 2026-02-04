@@ -6,6 +6,7 @@ export { BoardCanvasComponent } from './BoardCanvasComponent';
 export type {
   BoardCanvasProps,
   RenderableObject,
+  CanvasClickEvent,
 } from './BoardCanvasComponent';
 
 export { ZoomControlsComponent } from './ZoomControlsComponent';
@@ -38,3 +39,6 @@ export {
   DEFAULT_ANCHORS,
 } from './TransformerComponent';
 export type { TransformerComponentProps } from './TransformerComponent';
+
+export { ToolbarComponent } from './ToolbarComponent';
+export type { ToolbarComponentProps, ToolType } from './ToolbarComponent';

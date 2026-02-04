@@ -35,6 +35,20 @@ export interface RenderableObject {
 }
 
 /**
+ * Canvas click event data with canvas coordinates.
+ */
+export interface CanvasClickEvent {
+  /** X position in canvas coordinates */
+  canvasX: number;
+  /** Y position in canvas coordinates */
+  canvasY: number;
+  /** X position in screen coordinates */
+  screenX: number;
+  /** Y position in screen coordinates */
+  screenY: number;
+}
+
+/**
  * Props for the BoardCanvasComponent.
  */
 export interface BoardCanvasProps {
@@ -44,6 +58,8 @@ export interface BoardCanvasProps {
   onObjectSelect?: (objectId: string) => void;
   /** Callback when canvas background is clicked (deselect) */
   onBackgroundClick?: () => void;
+  /** Callback when canvas background is clicked with coordinates */
+  onCanvasClick?: (event: CanvasClickEvent) => void;
   /** Callback when an object position changes */
   onObjectDragEnd?: (objectId: string, x: number, y: number) => void;
   /** Currently selected object IDs */
@@ -91,6 +107,7 @@ export function BoardCanvasComponent({
   objects = [],
   onObjectSelect,
   onBackgroundClick,
+  onCanvasClick,
   onObjectDragEnd,
   selectedIds = new Set(),
   children,
@@ -154,15 +171,31 @@ export function BoardCanvasComponent({
   );
 
   /**
-   * Handle stage click for background deselection.
+   * Handle stage click for background deselection and object creation.
+   * Provides both screen and canvas coordinates.
    */
   const handleStageClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>): void => {
       if (e.target === stageRef.current) {
         onBackgroundClick?.();
+
+        const stage = stageRef.current;
+        if (stage && onCanvasClick) {
+          const pointer = stage.getPointerPosition();
+          if (pointer) {
+            const canvasX = (pointer.x - viewport.x) / viewport.scale;
+            const canvasY = (pointer.y - viewport.y) / viewport.scale;
+            onCanvasClick({
+              canvasX,
+              canvasY,
+              screenX: pointer.x,
+              screenY: pointer.y,
+            });
+          }
+        }
       }
     },
-    [onBackgroundClick]
+    [onBackgroundClick, onCanvasClick, viewport]
   );
 
   /**

@@ -94,7 +94,9 @@ export interface UseSelectionReturn {
 export function useSelection(): UseSelectionReturn {
   const serviceRef = useRef<ISelectionService>(new SelectionService());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [primarySelectedId, setPrimarySelectedId] = useState<string | null>(null);
+  const [primarySelectedId, setPrimarySelectedId] = useState<string | null>(
+    null
+  );
   const [lassoState, setLassoState] = useState<LassoState>(DEFAULT_LASSO_STATE);
 
   useEffect(() => {

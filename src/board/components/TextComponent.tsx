@@ -21,10 +21,7 @@ export interface TextComponentProps {
   /** Reference to the Konva stage for editor positioning */
   stageRef?: React.RefObject<Konva.Stage | null>;
   /** Callback when the text is clicked */
-  onClick?: (
-    textId: string,
-    event: Konva.KonvaEventObject<MouseEvent>
-  ) => void;
+  onClick?: (textId: string, event: Konva.KonvaEventObject<MouseEvent>) => void;
   /** Callback when the text is double-clicked (to start editing) */
   onDoubleClick?: (textId: string) => void;
   /** Callback when dragging starts */
