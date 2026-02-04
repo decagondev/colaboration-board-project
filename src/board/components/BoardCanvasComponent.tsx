@@ -5,20 +5,32 @@
  * Handles Stage and Layer setup with responsive sizing and viewport culling.
  */
 
-import { useRef, useCallback, useMemo } from 'react';
-import { Stage, Layer, Rect } from 'react-konva';
+import { useRef, useCallback, useMemo, useEffect, useState } from 'react';
+import { Stage, Layer, Rect, Ellipse, Group, Text } from 'react-konva';
 import type Konva from 'konva';
-import { useViewport } from '../hooks/useViewport';
-import type { Bounds } from '@shared/types';
+import type { Bounds, Size } from '@shared/types';
+import { TransformerComponent } from './TransformerComponent';
+
+/**
+ * Viewport state for canvas positioning and scaling.
+ */
+export interface ViewportState {
+  /** X offset of the viewport */
+  x: number;
+  /** Y offset of the viewport */
+  y: number;
+  /** Current zoom scale (1 = 100%) */
+  scale: number;
+}
 
 /**
  * Board object interface for rendering.
- * Minimal interface for objects to be rendered on the canvas.
+ * Extended interface with all data needed for type-specific rendering.
  */
 export interface RenderableObject {
   /** Unique object identifier */
   id: string;
-  /** Object type */
+  /** Object type: 'sticky-note', 'shape', 'text' */
   type: string;
   /** X position in canvas coordinates */
   x: number;
@@ -28,10 +40,8 @@ export interface RenderableObject {
   width: number;
   /** Object height */
   height: number;
-  /** Object color */
-  color?: string;
-  /** Rotation in degrees */
-  rotation?: number;
+  /** Object-specific data */
+  data?: Record<string, unknown>;
 }
 
 /**
@@ -51,9 +61,31 @@ export interface CanvasClickEvent {
 /**
  * Props for the BoardCanvasComponent.
  */
+/**
+ * Transform end event data for resize/rotate operations.
+ */
+export interface TransformEndEvent {
+  /** Object ID being transformed */
+  objectId: string;
+  /** New X position */
+  x: number;
+  /** New Y position */
+  y: number;
+  /** New width */
+  width: number;
+  /** New height */
+  height: number;
+  /** New rotation in degrees */
+  rotation: number;
+}
+
 export interface BoardCanvasProps {
   /** Array of objects to render on the canvas */
   objects?: RenderableObject[];
+  /** Controlled viewport state */
+  viewport?: ViewportState;
+  /** Callback when viewport changes (for controlled mode) */
+  onViewportChange?: (viewport: ViewportState) => void;
   /** Callback when an object is selected */
   onObjectSelect?: (objectId: string) => void;
   /** Callback when canvas background is clicked (deselect) */
@@ -62,6 +94,10 @@ export interface BoardCanvasProps {
   onCanvasClick?: (event: CanvasClickEvent) => void;
   /** Callback when an object position changes */
   onObjectDragEnd?: (objectId: string, x: number, y: number) => void;
+  /** Callback when object is double-clicked for editing */
+  onObjectDoubleClick?: (objectId: string) => void;
+  /** Callback when object is resized/rotated */
+  onObjectTransformEnd?: (event: TransformEndEvent) => void;
   /** Currently selected object IDs */
   selectedIds?: Set<string>;
   /** Children to render inside the canvas (custom layers) */
@@ -79,7 +115,18 @@ const ZOOM_SENSITIVITY = 1.05;
  * Background grid configuration.
  */
 const GRID_SIZE = 50;
-const _GRID_COLOR = '#e5e7eb';
+
+/**
+ * Default viewport state.
+ */
+const DEFAULT_VIEWPORT: ViewportState = { x: 0, y: 0, scale: 1 };
+
+/**
+ * Sticky note rendering constants.
+ */
+const STICKY_NOTE_CORNER_RADIUS = 4;
+const STICKY_NOTE_PADDING = 12;
+const STICKY_NOTE_SHADOW_OFFSET = 4;
 
 /**
  * Main board canvas component.
@@ -88,6 +135,7 @@ const _GRID_COLOR = '#e5e7eb';
  * - Infinite canvas with pan and zoom
  * - Responsive sizing to fill viewport
  * - Viewport culling for performance
+ * - Type-specific object rendering
  * - Multiple layers for separation of concerns
  *
  * @param props - Component props
@@ -97,6 +145,8 @@ const _GRID_COLOR = '#e5e7eb';
  * ```tsx
  * <BoardCanvasComponent
  *   objects={boardObjects}
+ *   viewport={viewport}
+ *   onViewportChange={setViewport}
  *   selectedIds={selectedObjectIds}
  *   onObjectSelect={(id) => setSelected(id)}
  *   onObjectDragEnd={(id, x, y) => updateObject(id, { x, y })}
@@ -105,19 +155,125 @@ const _GRID_COLOR = '#e5e7eb';
  */
 export function BoardCanvasComponent({
   objects = [],
+  viewport: controlledViewport,
+  onViewportChange,
   onObjectSelect,
   onBackgroundClick,
   onCanvasClick,
   onObjectDragEnd,
+  onObjectDoubleClick,
+  onObjectTransformEnd,
   selectedIds = new Set(),
   children,
 }: BoardCanvasProps): JSX.Element {
   const stageRef = useRef<Konva.Stage>(null);
+  const nodeRefsMap = useRef<Map<string, Konva.Node>>(new Map());
 
-  const { viewport, canvasSize, setViewport, isVisible } = useViewport({
-    minScale: MIN_SCALE,
-    maxScale: MAX_SCALE,
+  const [internalViewport, setInternalViewport] =
+    useState<ViewportState>(DEFAULT_VIEWPORT);
+  const [canvasSize, setCanvasSize] = useState<Size>({
+    width: typeof window !== 'undefined' ? window.innerWidth : 800,
+    height: typeof window !== 'undefined' ? window.innerHeight : 600,
   });
+
+  const viewport = controlledViewport ?? internalViewport;
+  const setViewport = onViewportChange ?? setInternalViewport;
+
+  /**
+   * Handle window resize for responsive canvas.
+   */
+  useEffect(() => {
+    function handleResize(): void {
+      setCanvasSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    }
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  /**
+   * Check if bounds are visible in the viewport.
+   */
+  const isVisible = useCallback(
+    (bounds: Bounds): boolean => {
+      const visibleBounds = {
+        x: -viewport.x / viewport.scale,
+        y: -viewport.y / viewport.scale,
+        width: canvasSize.width / viewport.scale,
+        height: canvasSize.height / viewport.scale,
+      };
+
+      const objRight = bounds.x + bounds.width;
+      const objBottom = bounds.y + bounds.height;
+      const visibleRight = visibleBounds.x + visibleBounds.width;
+      const visibleBottom = visibleBounds.y + visibleBounds.height;
+
+      return !(
+        bounds.x > visibleRight ||
+        objRight < visibleBounds.x ||
+        bounds.y > visibleBottom ||
+        objBottom < visibleBounds.y
+      );
+    },
+    [viewport, canvasSize]
+  );
+
+  /**
+   * Register a Konva node reference for an object.
+   */
+  const registerNodeRef = useCallback(
+    (objectId: string, node: Konva.Node | null) => {
+      if (node) {
+        nodeRefsMap.current.set(objectId, node);
+      } else {
+        nodeRefsMap.current.delete(objectId);
+      }
+    },
+    []
+  );
+
+  /**
+   * Get selected Konva nodes for the transformer.
+   */
+  const selectedNodes = useMemo(() => {
+    const nodes: Konva.Node[] = [];
+    selectedIds.forEach((id) => {
+      const node = nodeRefsMap.current.get(id);
+      if (node) {
+        nodes.push(node);
+      }
+    });
+    return nodes;
+  }, [selectedIds]);
+
+  /**
+   * Handle transform end event from the transformer.
+   */
+  const handleTransformEnd = useCallback(() => {
+    if (!onObjectTransformEnd) return;
+
+    selectedIds.forEach((objectId) => {
+      const node = nodeRefsMap.current.get(objectId);
+      if (!node) return;
+
+      const scaleX = node.scaleX();
+      const scaleY = node.scaleY();
+
+      node.scaleX(1);
+      node.scaleY(1);
+
+      onObjectTransformEnd({
+        objectId,
+        x: node.x(),
+        y: node.y(),
+        width: Math.max(node.width() * scaleX, 20),
+        height: Math.max(node.height() * scaleY, 20),
+        rotation: node.rotation(),
+      });
+    });
+  }, [selectedIds, onObjectTransformEnd]);
 
   /**
    * Handle mouse wheel for zooming.
@@ -213,35 +369,238 @@ export function BoardCanvasComponent({
   }, [objects, isVisible]);
 
   /**
+   * Render a sticky note object.
+   */
+  const renderStickyNote = useCallback(
+    (obj: RenderableObject, isSelected: boolean): JSX.Element => {
+      const color = (obj.data?.color as string) ?? '#fef08a';
+      const text = (obj.data?.text as string) ?? '';
+      const fontSize = (obj.data?.fontSize as number) ?? 16;
+      const rotation = (obj.data?.rotation as number) ?? 0;
+
+      return (
+        <Group
+          key={obj.id}
+          ref={(node) => registerNodeRef(obj.id, node)}
+          x={obj.x}
+          y={obj.y}
+          width={obj.width}
+          height={obj.height}
+          rotation={rotation}
+          draggable
+          onClick={() => onObjectSelect?.(obj.id)}
+          onTap={() => onObjectSelect?.(obj.id)}
+          onDblClick={() => onObjectDoubleClick?.(obj.id)}
+          onDblTap={() => onObjectDoubleClick?.(obj.id)}
+          onDragEnd={(e) => {
+            onObjectDragEnd?.(obj.id, e.target.x(), e.target.y());
+          }}
+        >
+          {/* Shadow */}
+          <Rect
+            x={STICKY_NOTE_SHADOW_OFFSET}
+            y={STICKY_NOTE_SHADOW_OFFSET}
+            width={obj.width}
+            height={obj.height}
+            cornerRadius={STICKY_NOTE_CORNER_RADIUS}
+            fill="rgba(0, 0, 0, 0.15)"
+          />
+          {/* Background */}
+          <Rect
+            width={obj.width}
+            height={obj.height}
+            fill={color}
+            cornerRadius={STICKY_NOTE_CORNER_RADIUS}
+            stroke={isSelected ? '#4A90D9' : undefined}
+            strokeWidth={isSelected ? 2 : 0}
+            shadowColor="rgba(0, 0, 0, 0.1)"
+            shadowBlur={8}
+            shadowOffset={{ x: 2, y: 2 }}
+          />
+          {/* Text */}
+          <Text
+            x={STICKY_NOTE_PADDING}
+            y={STICKY_NOTE_PADDING}
+            width={obj.width - STICKY_NOTE_PADDING * 2}
+            height={obj.height - STICKY_NOTE_PADDING * 2}
+            text={text || 'Double-click to edit'}
+            fill={text ? '#1f2937' : '#999999'}
+            fontSize={fontSize}
+            fontFamily="system-ui, -apple-system, sans-serif"
+            align="left"
+            verticalAlign="top"
+            wrap="word"
+            ellipsis={true}
+            listening={false}
+          />
+        </Group>
+      );
+    },
+    [onObjectSelect, onObjectDoubleClick, onObjectDragEnd, registerNodeRef]
+  );
+
+  /**
+   * Render a shape object (rectangle, ellipse, etc.).
+   */
+  const renderShape = useCallback(
+    (obj: RenderableObject, isSelected: boolean): JSX.Element => {
+      const shapeType = (obj.data?.shapeType as string) ?? 'rectangle';
+      const color = (obj.data?.color as string) ?? '#3b82f6';
+      const strokeColor = (obj.data?.strokeColor as string) ?? '#1d4ed8';
+      const strokeWidth = (obj.data?.strokeWidth as number) ?? 2;
+      const rotation = (obj.data?.rotation as number) ?? 0;
+
+      return (
+        <Group
+          key={obj.id}
+          ref={(node) => registerNodeRef(obj.id, node)}
+          x={obj.x}
+          y={obj.y}
+          width={obj.width}
+          height={obj.height}
+          rotation={rotation}
+          draggable
+          onClick={() => onObjectSelect?.(obj.id)}
+          onTap={() => onObjectSelect?.(obj.id)}
+          onDblClick={() => onObjectDoubleClick?.(obj.id)}
+          onDblTap={() => onObjectDoubleClick?.(obj.id)}
+          onDragEnd={(e) => {
+            onObjectDragEnd?.(obj.id, e.target.x(), e.target.y());
+          }}
+        >
+          {shapeType === 'ellipse' ? (
+            <Ellipse
+              x={obj.width / 2}
+              y={obj.height / 2}
+              radiusX={obj.width / 2}
+              radiusY={obj.height / 2}
+              fill={color}
+              stroke={isSelected ? '#4A90D9' : strokeColor}
+              strokeWidth={isSelected ? Math.max(strokeWidth, 2) : strokeWidth}
+              shadowColor="rgba(0, 0, 0, 0.1)"
+              shadowBlur={isSelected ? 10 : 5}
+              shadowOffset={{ x: 2, y: 2 }}
+            />
+          ) : (
+            <Rect
+              width={obj.width}
+              height={obj.height}
+              fill={color}
+              stroke={isSelected ? '#4A90D9' : strokeColor}
+              strokeWidth={isSelected ? Math.max(strokeWidth, 2) : strokeWidth}
+              cornerRadius={4}
+              shadowColor="rgba(0, 0, 0, 0.1)"
+              shadowBlur={isSelected ? 10 : 5}
+              shadowOffset={{ x: 2, y: 2 }}
+            />
+          )}
+        </Group>
+      );
+    },
+    [onObjectSelect, onObjectDoubleClick, onObjectDragEnd, registerNodeRef]
+  );
+
+  /**
+   * Render a text object.
+   */
+  const renderTextObject = useCallback(
+    (obj: RenderableObject, isSelected: boolean): JSX.Element => {
+      const text = (obj.data?.text as string) ?? 'Double-click to edit';
+      const fontSize = (obj.data?.fontSize as number) ?? 18;
+      const color = (obj.data?.color as string) ?? '#1f2937';
+      const rotation = (obj.data?.rotation as number) ?? 0;
+
+      return (
+        <Group
+          key={obj.id}
+          ref={(node) => registerNodeRef(obj.id, node)}
+          x={obj.x}
+          y={obj.y}
+          width={obj.width}
+          height={obj.height}
+          rotation={rotation}
+          draggable
+          onClick={() => onObjectSelect?.(obj.id)}
+          onTap={() => onObjectSelect?.(obj.id)}
+          onDblClick={() => onObjectDoubleClick?.(obj.id)}
+          onDblTap={() => onObjectDoubleClick?.(obj.id)}
+          onDragEnd={(e) => {
+            onObjectDragEnd?.(obj.id, e.target.x(), e.target.y());
+          }}
+        >
+          {/* Hit area for click/double-click detection */}
+          <Rect
+            width={obj.width}
+            height={obj.height}
+            fill="transparent"
+            stroke={isSelected ? '#4A90D9' : 'transparent'}
+            strokeWidth={isSelected ? 1 : 0}
+            dash={isSelected ? [4, 4] : undefined}
+          />
+          {/* Text content */}
+          <Text
+            width={obj.width}
+            height={obj.height}
+            text={text}
+            fontSize={fontSize}
+            fill={color}
+            fontFamily="system-ui, -apple-system, sans-serif"
+            align="left"
+            verticalAlign="middle"
+            wrap="word"
+            ellipsis={true}
+            listening={false}
+          />
+        </Group>
+      );
+    },
+    [onObjectSelect, onObjectDoubleClick, onObjectDragEnd, registerNodeRef]
+  );
+
+  /**
    * Render a single object based on its type.
-   * This is a placeholder - will be replaced with proper object components.
    */
   const renderObject = useCallback(
     (obj: RenderableObject): JSX.Element => {
       const isSelected = selectedIds.has(obj.id);
 
-      return (
-        <Rect
-          key={obj.id}
-          id={obj.id}
-          x={obj.x}
-          y={obj.y}
-          width={obj.width}
-          height={obj.height}
-          fill={obj.color ?? '#3b82f6'}
-          rotation={obj.rotation ?? 0}
-          draggable
-          stroke={isSelected ? '#1d4ed8' : undefined}
-          strokeWidth={isSelected ? 2 : 0}
-          onClick={() => onObjectSelect?.(obj.id)}
-          onTap={() => onObjectSelect?.(obj.id)}
-          onDragEnd={(e) => {
-            onObjectDragEnd?.(obj.id, e.target.x(), e.target.y());
-          }}
-        />
-      );
+      switch (obj.type) {
+        case 'sticky-note':
+          return renderStickyNote(obj, isSelected);
+        case 'shape':
+          return renderShape(obj, isSelected);
+        case 'text':
+          return renderTextObject(obj, isSelected);
+        default:
+          return (
+            <Rect
+              key={obj.id}
+              x={obj.x}
+              y={obj.y}
+              width={obj.width}
+              height={obj.height}
+              fill={(obj.data?.color as string) ?? '#3b82f6'}
+              rotation={(obj.data?.rotation as number) ?? 0}
+              draggable
+              stroke={isSelected ? '#4A90D9' : undefined}
+              strokeWidth={isSelected ? 2 : 0}
+              onClick={() => onObjectSelect?.(obj.id)}
+              onTap={() => onObjectSelect?.(obj.id)}
+              onDragEnd={(e) => {
+                onObjectDragEnd?.(obj.id, e.target.x(), e.target.y());
+              }}
+            />
+          );
+      }
     },
-    [selectedIds, onObjectSelect, onObjectDragEnd]
+    [
+      selectedIds,
+      renderStickyNote,
+      renderShape,
+      renderTextObject,
+      onObjectSelect,
+      onObjectDragEnd,
+    ]
   );
 
   /**
@@ -290,7 +649,18 @@ export function BoardCanvasComponent({
       </Layer>
 
       {/* Object layer - main content */}
-      <Layer name="objects">{visibleObjects.map(renderObject)}</Layer>
+      <Layer name="objects">
+        {visibleObjects.map(renderObject)}
+        {/* Transformer for selected objects */}
+        {selectedNodes.length > 0 && (
+          <TransformerComponent
+            nodes={selectedNodes}
+            rotateEnabled={true}
+            keepRatio={false}
+            onTransformEnd={handleTransformEnd}
+          />
+        )}
+      </Layer>
 
       {/* Custom layers passed as children */}
       {children}
@@ -299,11 +669,7 @@ export function BoardCanvasComponent({
 }
 
 /**
- * Export viewport hook for external use.
+ * Re-export viewport hook for external use.
  */
 export { useViewport } from '../hooks/useViewport';
-export type {
-  ViewportState,
-  ViewportOptions,
-  UseViewportReturn,
-} from '../hooks/useViewport';
+export type { ViewportOptions, UseViewportReturn } from '../hooks/useViewport';

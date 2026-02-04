@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { AuthProvider, AuthGuard, useAuth } from '@auth/index';
 import {
   PresenceProvider,
@@ -15,7 +15,13 @@ import {
   ToolbarComponent,
 } from '@board/index';
 import type { BoardMetadata } from '@board/context/BoardContext';
-import type { CanvasClickEvent, ToolType } from '@board/components';
+import type {
+  CanvasClickEvent,
+  ToolType,
+  RenderableObject,
+  ViewportState,
+  TransformEndEvent,
+} from '@board/components';
 import type { SyncableObject } from '@sync/interfaces/ISyncService';
 import { generateUUID } from '@shared/utils';
 import './App.css';
@@ -60,6 +66,14 @@ interface BoardCanvasWithCursorsProps {
 }
 
 /**
+ * State for editing text objects.
+ */
+interface EditingState {
+  objectId: string | null;
+  initialText: string;
+}
+
+/**
  * Inner board canvas that has access to board and cursor contexts.
  * Renders the Konva canvas with cursor overlay.
  */
@@ -74,9 +88,44 @@ function BoardCanvasWithCursors({
     selectObject,
     clearSelection,
     updateObject,
+    deleteObject,
     createObject,
+    viewport,
+    setViewport,
   } = useBoard();
   const { updateCursorPosition } = useCursor();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [editingState, setEditingState] = useState<EditingState>({
+    objectId: null,
+    initialText: '',
+  });
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  /**
+   * Handle keyboard events for delete and other shortcuts.
+   */
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (editingState.objectId) return;
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedObjectIds.size > 0) {
+          e.preventDefault();
+          selectedObjectIds.forEach((id) => {
+            deleteObject(id);
+          });
+          clearSelection();
+        }
+      }
+
+      if (e.key === 'Escape') {
+        clearSelection();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedObjectIds, deleteObject, clearSelection, editingState.objectId]);
 
   /**
    * Handle mouse move to track cursor position.
@@ -116,6 +165,117 @@ function BoardCanvasWithCursors({
       updateObject(objectId, { x, y });
     },
     [updateObject]
+  );
+
+  /**
+   * Handle double-click on an object to start editing.
+   */
+  const handleObjectDoubleClick = useCallback(
+    (objectId: string) => {
+      const obj = objects.find((o) => o.id === objectId);
+      if (!obj) return;
+
+      if (obj.type === 'sticky-note' || obj.type === 'text') {
+        const currentText =
+          obj.type === 'sticky-note'
+            ? ((obj.data?.text as string) ?? '')
+            : ((obj.data?.text as string) ?? '');
+
+        setEditingState({ objectId, initialText: currentText });
+
+        setTimeout(() => {
+          if (!containerRef.current) return;
+
+          const containerRect = containerRef.current.getBoundingClientRect();
+
+          const screenX = obj.x * viewport.scale + viewport.x;
+          const screenY = obj.y * viewport.scale + viewport.y;
+          const screenWidth = obj.width * viewport.scale;
+          const screenHeight = obj.height * viewport.scale;
+
+          const textarea = document.createElement('textarea');
+          textarea.value = currentText;
+          textarea.style.position = 'absolute';
+          textarea.style.left = `${containerRect.left + screenX + 12}px`;
+          textarea.style.top = `${containerRect.top + screenY + 12}px`;
+          textarea.style.width = `${screenWidth - 24}px`;
+          textarea.style.height = `${screenHeight - 24}px`;
+          textarea.style.fontSize = `${((obj.data?.fontSize as number) ?? 16) * viewport.scale}px`;
+          textarea.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+          textarea.style.border = '2px solid #4A90D9';
+          textarea.style.borderRadius = '4px';
+          textarea.style.padding = '4px';
+          textarea.style.margin = '0';
+          textarea.style.resize = 'none';
+          textarea.style.outline = 'none';
+          textarea.style.overflow = 'hidden';
+          textarea.style.zIndex = '10000';
+          textarea.style.backgroundColor =
+            obj.type === 'sticky-note'
+              ? ((obj.data?.color as string) ?? '#fef08a')
+              : 'white';
+          textarea.style.color = '#1f2937';
+
+          const handleBlur = (): void => {
+            const newText = textarea.value;
+            updateObject(objectId, {
+              data: { ...obj.data, text: newText },
+            });
+            textarea.remove();
+            setEditingState({ objectId: null, initialText: '' });
+            textareaRef.current = null;
+          };
+
+          const handleKeyDown = (e: KeyboardEvent): void => {
+            if (e.key === 'Escape') {
+              textarea.value = currentText;
+              textarea.blur();
+            } else if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              textarea.blur();
+            }
+          };
+
+          textarea.addEventListener('blur', handleBlur);
+          textarea.addEventListener('keydown', handleKeyDown);
+
+          document.body.appendChild(textarea);
+          textarea.focus();
+          textarea.select();
+          textareaRef.current = textarea;
+        }, 0);
+      }
+    },
+    [objects, viewport, updateObject]
+  );
+
+  /**
+   * Handle object transform end (resize/rotate).
+   */
+  const handleObjectTransformEnd = useCallback(
+    (event: TransformEndEvent) => {
+      updateObject(event.objectId, {
+        x: event.x,
+        y: event.y,
+        width: event.width,
+        height: event.height,
+        data: {
+          ...objects.find((o) => o.id === event.objectId)?.data,
+          rotation: event.rotation,
+        },
+      });
+    },
+    [updateObject, objects]
+  );
+
+  /**
+   * Handle viewport change from canvas.
+   */
+  const handleViewportChange = useCallback(
+    (newViewport: ViewportState) => {
+      setViewport(newViewport);
+    },
+    [setViewport]
   );
 
   /**
@@ -223,9 +383,9 @@ function BoardCanvasWithCursors({
 
   /**
    * Convert board objects to renderable format.
-   * Object-specific properties like color and rotation are stored in the data field.
+   * Passes full data for type-specific rendering.
    */
-  const renderableObjects = useMemo(() => {
+  const renderableObjects = useMemo((): RenderableObject[] => {
     return objects.map((obj) => ({
       id: obj.id,
       type: obj.type,
@@ -233,20 +393,152 @@ function BoardCanvasWithCursors({
       y: obj.y,
       width: obj.width,
       height: obj.height,
-      color: (obj.data?.color as string) ?? '#3b82f6',
-      rotation: (obj.data?.rotation as number) ?? 0,
+      data: obj.data,
     }));
   }, [objects]);
 
+  /**
+   * Handle container click for object creation.
+   * This bypasses Konva's event system which may not receive browser automation clicks.
+   */
+  const handleContainerClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const canvas = containerRef.current?.querySelector('canvas');
+      if (!canvas) {
+        return;
+      }
+
+      if (activeTool === 'select') {
+        return;
+      }
+
+      const rect = canvas.getBoundingClientRect();
+      const screenX = e.clientX - rect.left;
+      const screenY = e.clientY - rect.top;
+
+      const canvasX = (screenX - viewport.x) / viewport.scale;
+      const canvasY = (screenY - viewport.y) / viewport.scale;
+
+      console.log('[App] Canvas click detected:', {
+        screenX,
+        screenY,
+        canvasX,
+        canvasY,
+        activeTool,
+      });
+
+      const now = Date.now();
+      const baseObject = {
+        id: generateUUID(),
+        createdBy: userId,
+        createdAt: now,
+        modifiedBy: userId,
+        modifiedAt: now,
+        zIndex: objects.length + 1,
+      };
+
+      let newObject: SyncableObject | null = null;
+
+      switch (activeTool) {
+        case 'sticky-note': {
+          const color =
+            STICKY_NOTE_COLORS[
+              Math.floor(Math.random() * STICKY_NOTE_COLORS.length)
+            ];
+          newObject = {
+            ...baseObject,
+            type: 'sticky-note',
+            x: canvasX - DEFAULT_STICKY_NOTE_SIZE.width / 2,
+            y: canvasY - DEFAULT_STICKY_NOTE_SIZE.height / 2,
+            width: DEFAULT_STICKY_NOTE_SIZE.width,
+            height: DEFAULT_STICKY_NOTE_SIZE.height,
+            data: {
+              color,
+              text: '',
+              fontSize: 16,
+            },
+          };
+          break;
+        }
+        case 'rectangle': {
+          newObject = {
+            ...baseObject,
+            type: 'shape',
+            x: canvasX - DEFAULT_SHAPE_SIZE.width / 2,
+            y: canvasY - DEFAULT_SHAPE_SIZE.height / 2,
+            width: DEFAULT_SHAPE_SIZE.width,
+            height: DEFAULT_SHAPE_SIZE.height,
+            data: {
+              shapeType: 'rectangle',
+              color: '#3b82f6',
+              strokeColor: '#1d4ed8',
+              strokeWidth: 2,
+            },
+          };
+          break;
+        }
+        case 'ellipse': {
+          newObject = {
+            ...baseObject,
+            type: 'shape',
+            x: canvasX - DEFAULT_SHAPE_SIZE.width / 2,
+            y: canvasY - DEFAULT_SHAPE_SIZE.height / 2,
+            width: DEFAULT_SHAPE_SIZE.width,
+            height: DEFAULT_SHAPE_SIZE.height,
+            data: {
+              shapeType: 'ellipse',
+              color: '#10b981',
+              strokeColor: '#059669',
+              strokeWidth: 2,
+            },
+          };
+          break;
+        }
+        case 'text': {
+          newObject = {
+            ...baseObject,
+            type: 'text',
+            x: canvasX,
+            y: canvasY,
+            width: 200,
+            height: 50,
+            data: {
+              text: 'Double-click to edit',
+              fontSize: 18,
+              color: '#1f2937',
+            },
+          };
+          break;
+        }
+      }
+
+      if (newObject) {
+        createObject(newObject);
+        onToolReset();
+      }
+    },
+    [activeTool, viewport, userId, objects.length, createObject, onToolReset]
+  );
+
   return (
-    <div className="board-canvas-container" onMouseMove={handleMouseMove}>
+    <div
+      ref={containerRef}
+      className="board-canvas-container"
+      onMouseMove={handleMouseMove}
+      onClick={handleContainerClick}
+      tabIndex={0}
+    >
       <BoardCanvasComponent
         objects={renderableObjects}
+        viewport={viewport}
+        onViewportChange={handleViewportChange}
         selectedIds={selectedObjectIds}
         onObjectSelect={handleObjectSelect}
         onBackgroundClick={handleBackgroundClick}
         onCanvasClick={handleCanvasClick}
         onObjectDragEnd={handleObjectDragEnd}
+        onObjectDoubleClick={handleObjectDoubleClick}
+        onObjectTransformEnd={handleObjectTransformEnd}
       >
         <CursorOverlayComponent />
       </BoardCanvasComponent>

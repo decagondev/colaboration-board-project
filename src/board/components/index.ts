@@ -7,6 +7,8 @@ export type {
   BoardCanvasProps,
   RenderableObject,
   CanvasClickEvent,
+  ViewportState,
+  TransformEndEvent,
 } from './BoardCanvasComponent';
 
 export { ZoomControlsComponent } from './ZoomControlsComponent';
