@@ -2,4 +2,4 @@
  * Presence module interface exports.
  */
 
-export {};
+export * from './IPresenceService';
