@@ -2,4 +2,8 @@
  * Board module component exports.
  */
 
-export {};
+export { BoardCanvasComponent } from './BoardCanvasComponent';
+export type {
+  BoardCanvasProps,
+  RenderableObject,
+} from './BoardCanvasComponent';

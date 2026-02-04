@@ -2,4 +2,9 @@
  * Board module hook exports.
  */
 
-export {};
+export { useViewport } from './useViewport';
+export type {
+  ViewportState,
+  ViewportOptions,
+  UseViewportReturn,
+} from './useViewport';
