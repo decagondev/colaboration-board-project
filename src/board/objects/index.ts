@@ -11,3 +11,6 @@ export {
   STICKY_NOTE_DEFAULTS,
 } from './StickyNote';
 export type { StickyNoteData } from './StickyNote';
+
+export { Shape, SHAPE_DEFAULTS } from './Shape';
+export type { ShapeType, ShapeData } from './Shape';

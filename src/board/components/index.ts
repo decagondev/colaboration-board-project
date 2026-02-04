@@ -16,3 +16,6 @@ export {
   useStickyNoteEditor,
 } from './StickyNoteComponent';
 export type { StickyNoteComponentProps } from './StickyNoteComponent';
+
+export { ShapeComponent } from './ShapeComponent';
+export type { ShapeComponentProps } from './ShapeComponent';
