@@ -23,7 +23,7 @@ import type {
   TransformEndEvent,
 } from '@board/components';
 import type { SyncableObject } from '@sync/interfaces/ISyncService';
-import { generateUUID } from '@shared/utils';
+import { generateUUID, measureText } from '@shared/utils';
 import './App.css';
 
 /**
@@ -266,6 +266,7 @@ function BoardCanvasWithCursors({
   /**
    * Handle object transform end (resize/rotate).
    * For text and sticky-note objects, scales the font size proportionally.
+   * For text objects, also snaps the bounding box to fit the scaled text.
    */
   const handleObjectTransformEnd = useCallback(
     (event: TransformEndEvent) => {
@@ -278,19 +279,35 @@ function BoardCanvasWithCursors({
         rotation: event.rotation,
       };
 
+      let finalWidth = event.width;
+      let finalHeight = event.height;
+
       if (obj.type === 'text' || obj.type === 'sticky-note') {
         const currentFontSize = (existingData.fontSize as number) ?? 16;
         const scaleFactor = Math.max(event.scaleX, event.scaleY);
         const newFontSize = Math.round(currentFontSize * scaleFactor);
         const clampedFontSize = Math.max(8, Math.min(200, newFontSize));
         updatedData.fontSize = clampedFontSize;
+
+        if (obj.type === 'text') {
+          const textContent = (existingData.text as string) || 'Text';
+          const measured = measureText({
+            text: textContent,
+            fontSize: clampedFontSize,
+            fontFamily: 'system-ui, -apple-system, sans-serif',
+            padding: 16,
+          });
+
+          finalWidth = Math.max(measured.width, 50);
+          finalHeight = Math.max(measured.height, 30);
+        }
       }
 
       updateObject(event.objectId, {
         x: event.x,
         y: event.y,
-        width: event.width,
-        height: event.height,
+        width: finalWidth,
+        height: finalHeight,
         data: updatedData,
       });
     },
