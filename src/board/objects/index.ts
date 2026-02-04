@@ -14,3 +14,11 @@ export type { StickyNoteData } from './StickyNote';
 
 export { Shape, SHAPE_DEFAULTS } from './Shape';
 export type { ShapeType, ShapeData } from './Shape';
+
+export { Connector, CONNECTOR_DEFAULTS } from './Connector';
+export type {
+  ConnectorRouteStyle,
+  ConnectorArrowStyle,
+  ConnectorEndpoint,
+  ConnectorData,
+} from './Connector';

@@ -19,3 +19,6 @@ export type { StickyNoteComponentProps } from './StickyNoteComponent';
 
 export { ShapeComponent } from './ShapeComponent';
 export type { ShapeComponentProps } from './ShapeComponent';
+
+export { ConnectorComponent } from './ConnectorComponent';
+export type { ConnectorComponentProps } from './ConnectorComponent';
