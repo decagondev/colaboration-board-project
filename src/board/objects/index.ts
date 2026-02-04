@@ -2,4 +2,5 @@
  * Board module object exports.
  */
 
-export {};
+export { ObjectFactory, getObjectFactory } from './ObjectFactory';
+export type { CreateObjectOptions, ObjectCreator } from './ObjectFactory';
