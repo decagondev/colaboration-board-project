@@ -81,6 +81,10 @@ export interface TransformEndEvent {
   height: number;
   /** New rotation in degrees */
   rotation: number;
+  /** Scale factor applied horizontally */
+  scaleX: number;
+  /** Scale factor applied vertically */
+  scaleY: number;
 }
 
 export interface BoardCanvasProps {
@@ -302,6 +306,7 @@ export function BoardCanvasComponent({
 
   /**
    * Handle transform end event from the transformer.
+   * Passes scale factors for font size scaling in text objects.
    */
   const handleTransformEnd = useCallback(() => {
     if (!onObjectTransformEnd) return;
@@ -323,6 +328,8 @@ export function BoardCanvasComponent({
         width: Math.max(node.width() * scaleX, 20),
         height: Math.max(node.height() * scaleY, 20),
         rotation: node.rotation(),
+        scaleX,
+        scaleY,
       });
     });
   }, [selectedIds, onObjectTransformEnd]);

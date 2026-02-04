@@ -265,18 +265,33 @@ function BoardCanvasWithCursors({
 
   /**
    * Handle object transform end (resize/rotate).
+   * For text and sticky-note objects, scales the font size proportionally.
    */
   const handleObjectTransformEnd = useCallback(
     (event: TransformEndEvent) => {
+      const obj = objects.find((o) => o.id === event.objectId);
+      if (!obj) return;
+
+      const existingData = obj.data ?? {};
+      const updatedData: Record<string, unknown> = {
+        ...existingData,
+        rotation: event.rotation,
+      };
+
+      if (obj.type === 'text' || obj.type === 'sticky-note') {
+        const currentFontSize = (existingData.fontSize as number) ?? 16;
+        const scaleFactor = Math.max(event.scaleX, event.scaleY);
+        const newFontSize = Math.round(currentFontSize * scaleFactor);
+        const clampedFontSize = Math.max(8, Math.min(200, newFontSize));
+        updatedData.fontSize = clampedFontSize;
+      }
+
       updateObject(event.objectId, {
         x: event.x,
         y: event.y,
         width: event.width,
         height: event.height,
-        data: {
-          ...objects.find((o) => o.id === event.objectId)?.data,
-          rotation: event.rotation,
-        },
+        data: updatedData,
       });
     },
     [updateObject, objects]
