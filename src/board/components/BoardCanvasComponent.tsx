@@ -11,6 +11,8 @@ import type Konva from 'konva';
 import type { Bounds, Size } from '@shared/types';
 import { TransformerComponent } from './TransformerComponent';
 import { LassoOverlayComponent } from './LassoOverlayComponent';
+import { GridOverlayComponent } from './GridOverlayComponent';
+import type { GridConfig } from './GridOverlayComponent';
 import type { LassoState } from '../interfaces/ISelectionService';
 
 /**
@@ -106,6 +108,10 @@ export interface BoardCanvasProps {
   activeTool?: string;
   /** Callback when lasso selection completes with object IDs in bounds */
   onLassoSelect?: (objectIds: string[]) => void;
+  /** Whether to show the grid overlay */
+  showGrid?: boolean;
+  /** Grid configuration options */
+  gridConfig?: Partial<GridConfig>;
   /** Children to render inside the canvas (custom layers) */
   children?: React.ReactNode;
 }
@@ -172,6 +178,8 @@ export function BoardCanvasComponent({
   selectedIds = new Set(),
   activeTool = 'select',
   onLassoSelect,
+  showGrid = false,
+  gridConfig,
   children,
 }: BoardCanvasProps): JSX.Element {
   const stageRef = useRef<Konva.Stage>(null);
@@ -835,6 +843,13 @@ export function BoardCanvasComponent({
           width={gridBounds.width}
           height={gridBounds.height}
           fill="#ffffff"
+        />
+        {/* Grid overlay */}
+        <GridOverlayComponent
+          visible={showGrid}
+          viewport={viewport}
+          canvasSize={canvasSize}
+          config={gridConfig}
         />
       </Layer>
 

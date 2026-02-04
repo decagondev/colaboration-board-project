@@ -44,3 +44,12 @@ export type { TransformerComponentProps } from './TransformerComponent';
 
 export { ToolbarComponent } from './ToolbarComponent';
 export type { ToolbarComponentProps, ToolType } from './ToolbarComponent';
+
+export {
+  GridOverlayComponent,
+  DEFAULT_GRID_CONFIG,
+} from './GridOverlayComponent';
+export type {
+  GridOverlayComponentProps,
+  GridConfig,
+} from './GridOverlayComponent';

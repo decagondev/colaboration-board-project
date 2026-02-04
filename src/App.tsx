@@ -63,6 +63,8 @@ interface BoardCanvasWithCursorsProps {
   onToolReset: () => void;
   /** Current user ID for object creation */
   userId: string;
+  /** Whether to show the grid overlay */
+  showGrid: boolean;
 }
 
 /**
@@ -81,6 +83,7 @@ function BoardCanvasWithCursors({
   activeTool,
   onToolReset,
   userId,
+  showGrid,
 }: BoardCanvasWithCursorsProps) {
   const {
     objects,
@@ -544,6 +547,7 @@ function BoardCanvasWithCursors({
         onObjectTransformEnd={handleObjectTransformEnd}
         activeTool={activeTool}
         onLassoSelect={handleLassoSelect}
+        showGrid={showGrid}
       >
         <CursorOverlayComponent />
       </BoardCanvasComponent>
@@ -579,6 +583,7 @@ function BoardZoomControls() {
 function BoardContent() {
   const { user, signOut } = useAuth();
   const [activeTool, setActiveTool] = useState<ToolType>('select');
+  const [showGrid, setShowGrid] = useState(false);
 
   /**
    * Create board metadata for the default board.
@@ -611,6 +616,51 @@ function BoardContent() {
     setActiveTool('select');
   }, []);
 
+  /**
+   * Toggle grid visibility.
+   */
+  const handleGridToggle = useCallback(() => {
+    setShowGrid((prev) => !prev);
+  }, []);
+
+  /**
+   * Keyboard shortcuts for tools and grid.
+   */
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+
+      switch (e.key.toLowerCase()) {
+        case 'g':
+          handleGridToggle();
+          break;
+        case 'v':
+          setActiveTool('select');
+          break;
+        case 'n':
+          setActiveTool('sticky-note');
+          break;
+        case 'r':
+          setActiveTool('rectangle');
+          break;
+        case 'o':
+          setActiveTool('ellipse');
+          break;
+        case 't':
+          setActiveTool('text');
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleGridToggle]);
+
   return (
     <div className="app">
       <header className="app-header">
@@ -633,11 +683,14 @@ function BoardContent() {
             <ToolbarComponent
               activeTool={activeTool}
               onToolChange={handleToolChange}
+              showGrid={showGrid}
+              onGridToggle={handleGridToggle}
             />
             <BoardCanvasWithCursors
               activeTool={activeTool}
               onToolReset={handleToolReset}
               userId={user?.uid ?? 'anonymous'}
+              showGrid={showGrid}
             />
             <BoardZoomControls />
           </CursorProvider>

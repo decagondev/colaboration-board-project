@@ -25,6 +25,10 @@ export interface ToolbarComponentProps {
   activeTool: ToolType;
   /** Callback when a tool is selected */
   onToolChange: (tool: ToolType) => void;
+  /** Whether the grid is visible */
+  showGrid?: boolean;
+  /** Callback when grid visibility is toggled */
+  onGridToggle?: () => void;
   /** Optional CSS class name */
   className?: string;
 }
@@ -73,6 +77,8 @@ const TOOLS: ToolButton[] = [
 export function ToolbarComponent({
   activeTool,
   onToolChange,
+  showGrid = false,
+  onGridToggle,
   className = '',
 }: ToolbarComponentProps): JSX.Element {
   /**
@@ -103,6 +109,26 @@ export function ToolbarComponent({
           <span style={iconStyles}>{tool.icon}</span>
         </button>
       ))}
+      
+      {/* Divider */}
+      {onGridToggle && <div style={dividerStyles} />}
+      
+      {/* Grid toggle button */}
+      {onGridToggle && (
+        <button
+          type="button"
+          title={`Toggle Grid (G)${showGrid ? ' - On' : ' - Off'}`}
+          aria-label="Toggle Grid"
+          aria-pressed={showGrid}
+          onClick={onGridToggle}
+          style={{
+            ...buttonStyles,
+            ...(showGrid ? activeButtonStyles : {}),
+          }}
+        >
+          <span style={iconStyles}>#</span>
+        </button>
+      )}
     </div>
   );
 }
@@ -156,6 +182,16 @@ const activeButtonStyles: React.CSSProperties = {
 const iconStyles: React.CSSProperties = {
   fontSize: '20px',
   lineHeight: 1,
+};
+
+/**
+ * Divider styles between tool sections.
+ */
+const dividerStyles: React.CSSProperties = {
+  width: '32px',
+  height: '1px',
+  backgroundColor: '#e5e7eb',
+  margin: '4px auto',
 };
 
 export default ToolbarComponent;
