@@ -20,3 +20,6 @@ export type { CreateObjectOptions, UseBoardStateReturn } from './useBoardState';
 
 export { useSelection } from './useSelection';
 export type { UseSelectionReturn } from './useSelection';
+
+export { useCommandHistory } from './useCommandHistory';
+export type { UseCommandHistoryReturn } from './useCommandHistory';

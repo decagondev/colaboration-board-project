@@ -63,3 +63,14 @@ export type {
   DraggedHandle,
 } from './ISelectionService';
 export { DEFAULT_LASSO_STATE } from './ISelectionService';
+
+export type {
+  CommandType,
+  ICommand,
+  IBatchCommand,
+  CommandHistoryOptions,
+  CommandHistoryState,
+  CommandHistoryChangeEvent,
+  ICommandHistory,
+} from './ICommand';
+export { DEFAULT_COMMAND_HISTORY_OPTIONS } from './ICommand';
