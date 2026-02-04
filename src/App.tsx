@@ -1,4 +1,5 @@
 import { AuthProvider, AuthGuard, useAuth } from '@auth/index';
+import { PresenceProvider, PresenceListComponent } from '@presence/index';
 import './App.css';
 
 /**
@@ -13,11 +14,14 @@ function BoardContent() {
       <header className="app-header">
         <div className="header-content">
           <h1>CollabBoard</h1>
-          <div className="header-user">
-            <span>{user?.email}</span>
-            <button onClick={signOut} className="sign-out-button">
-              Sign Out
-            </button>
+          <div className="header-right">
+            <PresenceListComponent />
+            <div className="header-user">
+              <span>{user?.email}</span>
+              <button onClick={signOut} className="sign-out-button">
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -29,6 +33,17 @@ function BoardContent() {
 }
 
 /**
+ * Authenticated content wrapper with presence provider.
+ */
+function AuthenticatedApp() {
+  return (
+    <PresenceProvider>
+      <BoardContent />
+    </PresenceProvider>
+  );
+}
+
+/**
  * Root application component for CollabBoard.
  * Wraps the app with auth provider and guard.
  */
@@ -36,7 +51,7 @@ function App() {
   return (
     <AuthProvider>
       <AuthGuard>
-        <BoardContent />
+        <AuthenticatedApp />
       </AuthGuard>
     </AuthProvider>
   );

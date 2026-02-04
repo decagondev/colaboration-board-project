@@ -2,4 +2,4 @@
  * Presence module hook exports.
  */
 
-export {};
+export * from './usePresence';

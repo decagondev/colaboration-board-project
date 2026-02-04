@@ -2,4 +2,4 @@
  * Presence module context exports.
  */
 
-export {};
+export * from './PresenceContext';

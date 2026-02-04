@@ -2,4 +2,4 @@
  * Presence module component exports.
  */
 
-export {};
+export * from './PresenceListComponent';

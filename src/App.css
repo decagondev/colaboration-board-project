@@ -18,6 +18,12 @@
   margin: 0 auto;
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
 .app-header h1 {
   margin: 0;
   font-size: 1.5rem;
