@@ -8,17 +8,55 @@ CollabBoard is a real-time collaborative whiteboard tool built with AI-first dev
 
 This project is developed as part of the Gauntlet AI Week 1 challenge, focusing on production-scale infrastructure, conflict resolution (last-write-wins), and AI integration for board manipulation. It supports up to 5+ concurrent users without degradation, with performance targets like 60 FPS rendering and <100ms object sync latency.
 
-**Tech Stack:**
-- **Frontend:** React + Konva.js for canvas rendering
-- **Backend/Database:** Firebase Realtime Database for sync
-- **Authentication:** Firebase Auth
-- **AI:** OpenAI GPT-4 with function calling
-- **API:** tRPC for type-safe communication
-- **Deployment:** Netlify
-- **Testing:** Jest (unit/integration) + Cypress (e2e)
-- **Code Quality:** ESLint + Prettier, TypeScript
+### Key Differentiators
 
-For more details, see the [Product Requirements Document (PRD)](docs/PRD.md) and [Pre-Search Report](docs/pre-search-report.md).
+- **AI-Powered Manipulation**: Natural language commands for creating, arranging, and transforming board objects
+- **Real-Time Collaboration**: Sub-100ms synchronization with optimistic UI updates
+- **Infinite Canvas**: Smooth pan/zoom with 60 FPS performance at 500+ objects
+- **SOLID Architecture**: Modular, maintainable codebase following SOLID principles
+
+## Tech Stack
+
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| Frontend | React + Konva.js | UI and canvas rendering |
+| Backend/Database | Firebase RTDB | Real-time data synchronization |
+| Authentication | Firebase Auth | User authentication and presence |
+| AI | OpenAI GPT-4 | Natural language command processing |
+| API | tRPC | Type-safe API communication |
+| Deployment | Netlify | Static site hosting with serverless |
+| Testing | Jest + Cypress | Unit, integration, and e2e tests |
+| Code Quality | ESLint + Prettier, TypeScript | Code standards enforcement |
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Comprehensive PRD](docs/COMPREHENSIVE-PRD.md) | Full product requirements with epics, user stories, and specifications |
+| [Architecture](docs/ARCHITECTURE.md) | System architecture with SOLID principles and module design |
+| [Git Workflow](docs/GIT-WORKFLOW.md) | Branching strategy and commit conventions |
+| [Coding Rules](.cursor/rules.md) | Development guidelines and coding standards |
+
+### Research Documents
+
+| Document | Description |
+|----------|-------------|
+| [Initial PRD V2](docs/research/INITIAL-PRD-V2.md) | Expanded PRD with detailed epics |
+| [Overview](docs/research/OVERVIEW.md) | Pre-search research findings |
+| [RTDB Latency](docs/research/RTDB-LATENCY-COMPARISONS.md) | Database performance analysis |
+| [Design Document](docs/research/INITIAL-PHASE-DESIGN-DOC.md) | Initial architecture design |
+
+### Tech Guides
+
+- [React Guide](docs/tech-guides/react.md)
+- [Konva.js Guide](docs/tech-guides/konva.md)
+- [Firebase RTDB Guide](docs/tech-guides/firebase-rtdb.md)
+- [Firebase Auth Guide](docs/tech-guides/firebase-auth.md)
+- [OpenAI GPT-4 Guide](docs/tech-guides/openai-gpt4.md)
+- [tRPC Guide](docs/tech-guides/trpc.md)
+- [ESLint & Prettier Guide](docs/tech-guides/eslint-prettier.md)
+- [Jest & Cypress Guide](docs/tech-guides/jest-cypress.md)
+- [Netlify Guide](docs/tech-guides/netlify.md)
 
 ## Prerequisites
 
