@@ -28,3 +28,13 @@ export type { FrameComponentProps } from './FrameComponent';
 
 export { TextComponent, useTextEditor } from './TextComponent';
 export type { TextComponentProps } from './TextComponent';
+
+export { LassoOverlayComponent, LASSO_DEFAULTS } from './LassoOverlayComponent';
+export type { LassoOverlayComponentProps } from './LassoOverlayComponent';
+
+export {
+  TransformerComponent,
+  TRANSFORMER_DEFAULTS,
+  DEFAULT_ANCHORS,
+} from './TransformerComponent';
+export type { TransformerComponentProps } from './TransformerComponent';

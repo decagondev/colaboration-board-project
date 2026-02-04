@@ -54,3 +54,12 @@ export type {
   IConnectable,
 } from './IConnectable';
 export { calculateConnectionPoints, isConnectable } from './IConnectable';
+
+export type {
+  SelectionMode,
+  LassoState,
+  SelectionChangeEvent,
+  ISelectionService,
+  DraggedHandle,
+} from './ISelectionService';
+export { DEFAULT_LASSO_STATE } from './ISelectionService';
