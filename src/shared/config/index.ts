@@ -1,0 +1,3 @@
+/**
+ * Shared module configuration exports.
+ */

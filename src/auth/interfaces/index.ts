@@ -1,0 +1,3 @@
+/**
+ * Auth module interface exports.
+ */

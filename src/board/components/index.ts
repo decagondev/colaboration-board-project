@@ -1,0 +1,3 @@
+/**
+ * Board module component exports.
+ */

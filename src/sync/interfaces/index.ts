@@ -1,0 +1,3 @@
+/**
+ * Sync module interface exports.
+ */

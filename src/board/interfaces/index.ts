@@ -1,0 +1,3 @@
+/**
+ * Board module interface exports.
+ */

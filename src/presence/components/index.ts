@@ -1,0 +1,3 @@
+/**
+ * Presence module component exports.
+ */

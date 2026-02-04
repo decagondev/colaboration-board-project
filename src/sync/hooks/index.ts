@@ -1,0 +1,3 @@
+/**
+ * Sync module hook exports.
+ */
