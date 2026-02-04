@@ -1,0 +1,7 @@
+{
+  "name": "CollabBoard Test Fixtures",
+  "testUser": {
+    "email": "test@example.com",
+    "password": "password123"
+  }
+}
