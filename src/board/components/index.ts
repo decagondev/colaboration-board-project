@@ -22,3 +22,9 @@ export type { ShapeComponentProps } from './ShapeComponent';
 
 export { ConnectorComponent } from './ConnectorComponent';
 export type { ConnectorComponentProps } from './ConnectorComponent';
+
+export { FrameComponent } from './FrameComponent';
+export type { FrameComponentProps } from './FrameComponent';
+
+export { TextComponent, useTextEditor } from './TextComponent';
+export type { TextComponentProps } from './TextComponent';

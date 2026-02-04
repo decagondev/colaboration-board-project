@@ -22,3 +22,14 @@ export type {
   ConnectorEndpoint,
   ConnectorData,
 } from './Connector';
+
+export { Frame, FRAME_DEFAULTS } from './Frame';
+export type { FrameData } from './Frame';
+
+export { StandaloneText, TEXT_DEFAULTS } from './StandaloneText';
+export type {
+  TextAlign,
+  TextVerticalAlign,
+  FontStyle,
+  StandaloneTextData,
+} from './StandaloneText';
