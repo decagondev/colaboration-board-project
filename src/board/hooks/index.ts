@@ -14,3 +14,6 @@ export type {
   CanvasInteractionOptions,
   UseCanvasInteractionReturn,
 } from './useCanvasInteraction';
+
+export { useBoardState } from './useBoardState';
+export type { CreateObjectOptions, UseBoardStateReturn } from './useBoardState';
