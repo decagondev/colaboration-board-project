@@ -8,7 +8,14 @@
   background-color: #1a1a2e;
   color: white;
   padding: 1rem 2rem;
-  text-align: center;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .app-header h1 {
@@ -16,10 +23,30 @@
   font-size: 1.5rem;
 }
 
-.app-header p {
-  margin: 0.25rem 0 0;
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-user span {
   font-size: 0.875rem;
-  opacity: 0.8;
+  opacity: 0.9;
+}
+
+.sign-out-button {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.sign-out-button:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .app-main {

@@ -1,22 +1,44 @@
+import { AuthProvider, AuthGuard, useAuth } from '@auth/index';
 import './App.css';
 
 /**
- * Root application component for CollabBoard.
- * This component will be wrapped with providers for auth, board state, presence, and AI.
- *
- * @returns The rendered application
+ * Main Board Content Component.
+ * Displays the authenticated user's board view.
  */
-function App() {
+function BoardContent() {
+  const { user, signOut } = useAuth();
+
   return (
     <div className="app">
       <header className="app-header">
-        <h1>CollabBoard</h1>
-        <p>Real-Time Collaborative Whiteboard</p>
+        <div className="header-content">
+          <h1>CollabBoard</h1>
+          <div className="header-user">
+            <span>{user?.email}</span>
+            <button onClick={signOut} className="sign-out-button">
+              Sign Out
+            </button>
+          </div>
+        </div>
       </header>
       <main className="app-main">
         <p>Welcome to CollabBoard! The canvas will be rendered here.</p>
       </main>
     </div>
+  );
+}
+
+/**
+ * Root application component for CollabBoard.
+ * Wraps the app with auth provider and guard.
+ */
+function App() {
+  return (
+    <AuthProvider>
+      <AuthGuard>
+        <BoardContent />
+      </AuthGuard>
+    </AuthProvider>
   );
 }
 
