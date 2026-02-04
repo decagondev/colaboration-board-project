@@ -7,13 +7,13 @@
  * @param wait - The number of milliseconds to delay
  * @returns The debounced function
  */
-export function debounce<T extends (...args: Parameters<T>) => void>(
-  fn: T,
+export function debounce<Args extends unknown[]>(
+  fn: (...args: Args) => void,
   wait: number
-): (...args: Parameters<T>) => void {
+): (...args: Args) => void {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  return (...args: Parameters<T>): void => {
+  return (...args: Args): void => {
     if (timeoutId !== null) {
       clearTimeout(timeoutId);
     }

@@ -3,3 +3,4 @@
  */
 
 export * from './FirebasePresenceService';
+export * from './FirebaseCursorService';
