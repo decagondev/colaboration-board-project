@@ -10,3 +10,9 @@ export type {
 
 export { ZoomControlsComponent } from './ZoomControlsComponent';
 export type { ZoomControlsProps } from './ZoomControlsComponent';
+
+export {
+  StickyNoteComponent,
+  useStickyNoteEditor,
+} from './StickyNoteComponent';
+export type { StickyNoteComponentProps } from './StickyNoteComponent';
