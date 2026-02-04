@@ -3,3 +3,4 @@
  */
 
 export * from './PresenceListComponent';
+export * from './CursorOverlayComponent';

@@ -3,3 +3,4 @@
  */
 
 export * from './PresenceContext';
+export * from './CursorContext';

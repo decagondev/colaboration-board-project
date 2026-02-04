@@ -123,12 +123,7 @@ export class FirebaseCursorService implements ICursorService {
    * @param y - Y coordinate in world space
    * @param boardId - The board ID
    */
-  updatePosition(
-    userId: string,
-    x: number,
-    y: number,
-    boardId: string
-  ): void {
+  updatePosition(userId: string, x: number, y: number, boardId: string): void {
     const debouncedUpdate = this.getDebouncedUpdate(userId, boardId);
     debouncedUpdate(x, y);
   }
@@ -140,7 +135,10 @@ export class FirebaseCursorService implements ICursorService {
    * @param callback - Function called when cursors change
    * @returns Unsubscribe function to stop listening
    */
-  subscribeToAllCursors(boardId: string, callback: CursorCallback): Unsubscribe {
+  subscribeToAllCursors(
+    boardId: string,
+    callback: CursorCallback
+  ): Unsubscribe {
     const boardCursorsRef = this.getBoardCursorsRef(boardId);
 
     const unsubscribe = onValue(boardCursorsRef, (snapshot) => {

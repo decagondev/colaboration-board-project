@@ -54,7 +54,8 @@ function getErrorMessage(code: string): string {
     'auth/user-not-found': 'No account found with this email.',
     'auth/wrong-password': 'Incorrect password.',
     'auth/invalid-credential': 'Invalid email or password.',
-    'auth/too-many-requests': 'Too many failed attempts. Please try again later.',
+    'auth/too-many-requests':
+      'Too many failed attempts. Please try again later.',
   };
 
   return errorMessages[code] || 'An authentication error occurred.';

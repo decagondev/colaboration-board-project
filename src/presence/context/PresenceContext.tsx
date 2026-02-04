@@ -14,7 +14,10 @@ import {
   useCallback,
   ReactNode,
 } from 'react';
-import type { OnlineUser, IPresenceService } from '../interfaces/IPresenceService';
+import type {
+  OnlineUser,
+  IPresenceService,
+} from '../interfaces/IPresenceService';
 import { FirebasePresenceService } from '../services/FirebasePresenceService';
 import { useAuth } from '@auth/hooks/useAuth';
 
@@ -41,7 +44,9 @@ interface PresenceContextValue {
 /**
  * Presence context with undefined default value.
  */
-const PresenceContext = createContext<PresenceContextValue | undefined>(undefined);
+const PresenceContext = createContext<PresenceContextValue | undefined>(
+  undefined
+);
 
 /**
  * Presence provider props.
@@ -66,19 +71,16 @@ export function PresenceProvider({
   presenceService,
 }: PresenceProviderProps) {
   const { user } = useAuth();
-  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [subscriptionData, setSubscriptionData] = useState<{
+    users: OnlineUser[];
+    receivedAt: number | null;
+    forUserId: string | null;
+  }>({ users: [], receivedAt: null, forUserId: null });
 
   const service = useMemo(
     () => presenceService ?? new FirebasePresenceService(),
     [presenceService]
   );
-
-  const currentUserColor = useMemo(() => {
-    if (!user) return null;
-    const currentOnlineUser = onlineUsers.find((u) => u.uid === user.uid);
-    return currentOnlineUser?.color ?? null;
-  }, [user, onlineUsers]);
 
   const setUserOnline = useCallback(async () => {
     if (!user) return;
@@ -95,16 +97,17 @@ export function PresenceProvider({
 
   useEffect(() => {
     if (!user) {
-      setOnlineUsers([]);
-      setIsLoading(false);
       return;
     }
 
     setUserOnline();
 
     const unsubscribe = service.subscribeToPresence(boardId, (users) => {
-      setOnlineUsers(users);
-      setIsLoading(false);
+      setSubscriptionData({
+        users,
+        receivedAt: Date.now(),
+        forUserId: user.uid,
+      });
     });
 
     return () => {
@@ -112,6 +115,23 @@ export function PresenceProvider({
       setUserOffline();
     };
   }, [user, boardId, service, setUserOnline, setUserOffline]);
+
+  const onlineUsers = useMemo(() => {
+    if (!user) return [];
+    if (subscriptionData.forUserId !== user.uid) return [];
+    return subscriptionData.users;
+  }, [user, subscriptionData]);
+
+  const isLoading = useMemo(() => {
+    if (!user) return false;
+    return subscriptionData.forUserId !== user.uid;
+  }, [user, subscriptionData.forUserId]);
+
+  const currentUserColor = useMemo(() => {
+    if (!user) return null;
+    const currentOnlineUser = onlineUsers.find((u) => u.uid === user.uid);
+    return currentOnlineUser?.color ?? null;
+  }, [user, onlineUsers]);
 
   const value = useMemo<PresenceContextValue>(
     () => ({

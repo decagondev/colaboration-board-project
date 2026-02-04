@@ -125,7 +125,10 @@ export class FirebasePresenceService implements IPresenceService {
    * @param callback - Function called when presence changes
    * @returns Unsubscribe function to stop listening
    */
-  subscribeToPresence(boardId: string, callback: PresenceCallback): Unsubscribe {
+  subscribeToPresence(
+    boardId: string,
+    callback: PresenceCallback
+  ): Unsubscribe {
     const boardPresenceRef = this.getBoardPresenceRef(boardId);
 
     const unsubscribe = onValue(boardPresenceRef, (snapshot) => {

@@ -65,10 +65,7 @@ interface AuthProviderProps {
  * </AuthProvider>
  * ```
  */
-export function AuthProvider({
-  children,
-  authService,
-}: AuthProviderProps) {
+export function AuthProvider({ children, authService }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -56,7 +56,11 @@ export interface IPresenceService {
    * @param boardId - The board to join
    * @returns Promise resolving when presence is set
    */
-  setOnline(userId: string, displayName: string, boardId: string): Promise<void>;
+  setOnline(
+    userId: string,
+    displayName: string,
+    boardId: string
+  ): Promise<void>;
 
   /**
    * Sets the current user as offline.

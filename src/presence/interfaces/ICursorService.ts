@@ -61,12 +61,7 @@ export interface ICursorService {
    * @param y - Y coordinate in world space
    * @param boardId - The board ID
    */
-  updatePosition(
-    userId: string,
-    x: number,
-    y: number,
-    boardId: string
-  ): void;
+  updatePosition(userId: string, x: number, y: number, boardId: string): void;
 
   /**
    * Subscribes to all cursor positions for a board.

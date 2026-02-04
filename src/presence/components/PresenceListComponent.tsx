@@ -19,7 +19,12 @@ interface UserAvatarProps {
   isCurrentUser: boolean;
 }
 
-function UserAvatar({ displayName, photoURL, color, isCurrentUser }: UserAvatarProps) {
+function UserAvatar({
+  displayName,
+  photoURL,
+  color,
+  isCurrentUser,
+}: UserAvatarProps) {
   const initial = displayName.charAt(0).toUpperCase();
 
   return (
@@ -81,9 +86,7 @@ export function PresenceListComponent() {
           />
         ))}
       </div>
-      <span className="presence-count">
-        {onlineUsers.length} online
-      </span>
+      <span className="presence-count">{onlineUsers.length} online</span>
     </div>
   );
 }
