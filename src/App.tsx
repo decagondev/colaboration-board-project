@@ -86,6 +86,7 @@ function BoardCanvasWithCursors({
     objects,
     selectedObjectIds,
     selectObject,
+    selectObjects,
     clearSelection,
     updateObject,
     deleteObject,
@@ -148,6 +149,16 @@ function BoardCanvasWithCursors({
       selectObject(objectId);
     },
     [selectObject]
+  );
+
+  /**
+   * Handle lasso selection (multiple objects).
+   */
+  const handleLassoSelect = useCallback(
+    (objectIds: string[]) => {
+      selectObjects(objectIds);
+    },
+    [selectObjects]
   );
 
   /**
@@ -419,14 +430,6 @@ function BoardCanvasWithCursors({
       const canvasX = (screenX - viewport.x) / viewport.scale;
       const canvasY = (screenY - viewport.y) / viewport.scale;
 
-      console.log('[App] Canvas click detected:', {
-        screenX,
-        screenY,
-        canvasX,
-        canvasY,
-        activeTool,
-      });
-
       const now = Date.now();
       const baseObject = {
         id: generateUUID(),
@@ -539,6 +542,8 @@ function BoardCanvasWithCursors({
         onObjectDragEnd={handleObjectDragEnd}
         onObjectDoubleClick={handleObjectDoubleClick}
         onObjectTransformEnd={handleObjectTransformEnd}
+        activeTool={activeTool}
+        onLassoSelect={handleLassoSelect}
       >
         <CursorOverlayComponent />
       </BoardCanvasComponent>

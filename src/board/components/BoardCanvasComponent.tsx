@@ -10,6 +10,8 @@ import { Stage, Layer, Rect, Ellipse, Group, Text } from 'react-konva';
 import type Konva from 'konva';
 import type { Bounds, Size } from '@shared/types';
 import { TransformerComponent } from './TransformerComponent';
+import { LassoOverlayComponent } from './LassoOverlayComponent';
+import type { LassoState } from '../interfaces/ISelectionService';
 
 /**
  * Viewport state for canvas positioning and scaling.
@@ -100,6 +102,10 @@ export interface BoardCanvasProps {
   onObjectTransformEnd?: (event: TransformEndEvent) => void;
   /** Currently selected object IDs */
   selectedIds?: Set<string>;
+  /** Currently active tool (affects pan behavior) */
+  activeTool?: string;
+  /** Callback when lasso selection completes with object IDs in bounds */
+  onLassoSelect?: (objectIds: string[]) => void;
   /** Children to render inside the canvas (custom layers) */
   children?: React.ReactNode;
 }
@@ -164,6 +170,8 @@ export function BoardCanvasComponent({
   onObjectDoubleClick,
   onObjectTransformEnd,
   selectedIds = new Set(),
+  activeTool = 'select',
+  onLassoSelect,
   children,
 }: BoardCanvasProps): JSX.Element {
   const stageRef = useRef<Konva.Stage>(null);
@@ -175,9 +183,45 @@ export function BoardCanvasComponent({
     width: typeof window !== 'undefined' ? window.innerWidth : 800,
     height: typeof window !== 'undefined' ? window.innerHeight : 600,
   });
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef<{ x: number; y: number } | null>(null);
+  const objectClickedRef = useRef(false);
+  const [lassoState, setLassoState] = useState<LassoState>({
+    isActive: false,
+    startPoint: null,
+    currentPoint: null,
+    bounds: null,
+  });
+  const lassoStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const viewport = controlledViewport ?? internalViewport;
   const setViewport = onViewportChange ?? setInternalViewport;
+
+  /**
+   * Track space bar for pan mode.
+   */
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent): void {
+      if (e.code === 'Space' && !e.repeat) {
+        e.preventDefault();
+        setIsSpacePressed(true);
+      }
+    }
+    function handleKeyUp(e: KeyboardEvent): void {
+      if (e.code === 'Space') {
+        setIsSpacePressed(false);
+        setIsPanning(false);
+        panStartRef.current = null;
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
 
   /**
    * Handle window resize for responsive canvas.
@@ -311,20 +355,129 @@ export function BoardCanvasComponent({
   );
 
   /**
-   * Handle stage drag end for panning.
+   * Handle mouse down for pan initiation or lasso selection.
+   * Panning is enabled when:
+   * - Space bar is held down
+   * - Middle mouse button is pressed
+   * Lasso is enabled when:
+   * - Select tool is active
+   * - Clicking on empty canvas (not on an object)
    */
-  const handleDragEnd = useCallback(
-    (e: Konva.KonvaEventObject<DragEvent>): void => {
-      if (e.target === stageRef.current) {
-        setViewport({
-          ...viewport,
-          x: e.target.x(),
-          y: e.target.y(),
+  const handleMouseDown = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>): void => {
+      const pointer = e.target?.getStage()?.getPointerPosition();
+      const canvasX = pointer ? (pointer.x - viewport.x) / viewport.scale : 0;
+      const canvasY = pointer ? (pointer.y - viewport.y) / viewport.scale : 0;
+      
+      const isMiddleButton = e.evt.button === 1;
+      const isLeftButton = e.evt.button === 0;
+      const clickedOnStage = e.target === stageRef.current;
+      
+      if (isSpacePressed || isMiddleButton) {
+        e.evt.preventDefault();
+        setIsPanning(true);
+        panStartRef.current = {
+          x: e.evt.clientX - viewport.x,
+          y: e.evt.clientY - viewport.y,
+        };
+      } else if (isLeftButton && activeTool === 'select' && clickedOnStage) {
+        lassoStartRef.current = { x: canvasX, y: canvasY };
+        setLassoState({
+          isActive: true,
+          startPoint: { x: canvasX, y: canvasY },
+          currentPoint: { x: canvasX, y: canvasY },
+          bounds: { x: canvasX, y: canvasY, width: 0, height: 0 },
         });
       }
     },
-    [viewport, setViewport]
+    [isSpacePressed, viewport.x, viewport.y, viewport.scale, activeTool]
   );
+
+  /**
+   * Handle mouse move for panning or lasso selection.
+   */
+  const handleMouseMove = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>): void => {
+      if (isPanning && panStartRef.current) {
+        const newX = e.evt.clientX - panStartRef.current.x;
+        const newY = e.evt.clientY - panStartRef.current.y;
+        setViewport({
+          ...viewport,
+          x: newX,
+          y: newY,
+        });
+      } else if (lassoState.isActive && lassoStartRef.current) {
+        const pointer = stageRef.current?.getPointerPosition();
+        if (!pointer) return;
+        
+        const canvasX = (pointer.x - viewport.x) / viewport.scale;
+        const canvasY = (pointer.y - viewport.y) / viewport.scale;
+        const start = lassoStartRef.current;
+        
+        const minX = Math.min(start.x, canvasX);
+        const minY = Math.min(start.y, canvasY);
+        const maxX = Math.max(start.x, canvasX);
+        const maxY = Math.max(start.y, canvasY);
+        
+        setLassoState({
+          isActive: true,
+          startPoint: start,
+          currentPoint: { x: canvasX, y: canvasY },
+          bounds: {
+            x: minX,
+            y: minY,
+            width: maxX - minX,
+            height: maxY - minY,
+          },
+        });
+      }
+    },
+    [isPanning, viewport, setViewport, lassoState.isActive]
+  );
+
+  /**
+   * Handle mouse up to end panning or finalize lasso selection.
+   */
+  const handleMouseUp = useCallback((): void => {
+    if (isPanning) {
+      setIsPanning(false);
+      panStartRef.current = null;
+    }
+    
+    if (lassoState.isActive && lassoState.bounds) {
+      const { x: lx, y: ly, width: lw, height: lh } = lassoState.bounds;
+      
+      if (lw > 5 || lh > 5) {
+        const selectedObjectIds = objects
+          .filter((obj) => {
+            const objRight = obj.x + obj.width;
+            const objBottom = obj.y + obj.height;
+            const lassoRight = lx + lw;
+            const lassoBottom = ly + lh;
+            
+            return (
+              obj.x < lassoRight &&
+              objRight > lx &&
+              obj.y < lassoBottom &&
+              objBottom > ly
+            );
+          })
+          .map((obj) => obj.id);
+        
+        if (selectedObjectIds.length > 0 && onLassoSelect) {
+          onLassoSelect(selectedObjectIds);
+        }
+      }
+      
+      setLassoState({
+        isActive: false,
+        startPoint: null,
+        currentPoint: null,
+        bounds: null,
+      });
+      lassoStartRef.current = null;
+    }
+  }, [isPanning, lassoState, objects, onLassoSelect]);
 
   /**
    * Handle stage click for background deselection and object creation.
@@ -332,6 +485,15 @@ export function BoardCanvasComponent({
    */
   const handleStageClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>): void => {
+      if (objectClickedRef.current) {
+        objectClickedRef.current = false;
+        return;
+      }
+      
+      if (lassoState.isActive) {
+        return;
+      }
+      
       if (e.target === stageRef.current) {
         onBackgroundClick?.();
 
@@ -351,7 +513,7 @@ export function BoardCanvasComponent({
         }
       }
     },
-    [onBackgroundClick, onCanvasClick, viewport]
+    [onBackgroundClick, onCanvasClick, viewport, lassoState.isActive]
   );
 
   /**
@@ -388,7 +550,11 @@ export function BoardCanvasComponent({
           height={obj.height}
           rotation={rotation}
           draggable
-          onClick={() => onObjectSelect?.(obj.id)}
+          onClick={(e) => {
+            e.cancelBubble = true;
+            objectClickedRef.current = true;
+            onObjectSelect?.(obj.id);
+          }}
           onTap={() => onObjectSelect?.(obj.id)}
           onDblClick={() => onObjectDoubleClick?.(obj.id)}
           onDblTap={() => onObjectDoubleClick?.(obj.id)}
@@ -460,7 +626,11 @@ export function BoardCanvasComponent({
           height={obj.height}
           rotation={rotation}
           draggable
-          onClick={() => onObjectSelect?.(obj.id)}
+          onClick={(e) => {
+            e.cancelBubble = true;
+            objectClickedRef.current = true;
+            onObjectSelect?.(obj.id);
+          }}
           onTap={() => onObjectSelect?.(obj.id)}
           onDblClick={() => onObjectDoubleClick?.(obj.id)}
           onDblTap={() => onObjectDoubleClick?.(obj.id)}
@@ -520,7 +690,11 @@ export function BoardCanvasComponent({
           height={obj.height}
           rotation={rotation}
           draggable
-          onClick={() => onObjectSelect?.(obj.id)}
+          onClick={(e) => {
+            e.cancelBubble = true;
+            objectClickedRef.current = true;
+            onObjectSelect?.(obj.id);
+          }}
           onTap={() => onObjectSelect?.(obj.id)}
           onDblClick={() => onObjectDoubleClick?.(obj.id)}
           onDblTap={() => onObjectDoubleClick?.(obj.id)}
@@ -584,7 +758,11 @@ export function BoardCanvasComponent({
               draggable
               stroke={isSelected ? '#4A90D9' : undefined}
               strokeWidth={isSelected ? 2 : 0}
-              onClick={() => onObjectSelect?.(obj.id)}
+              onClick={(e) => {
+                e.cancelBubble = true;
+                objectClickedRef.current = true;
+                onObjectSelect?.(obj.id);
+              }}
               onTap={() => onObjectSelect?.(obj.id)}
               onDragEnd={(e) => {
                 onObjectDragEnd?.(obj.id, e.target.x(), e.target.y());
@@ -622,6 +800,15 @@ export function BoardCanvasComponent({
     };
   }, [viewport, canvasSize]);
 
+  /**
+   * Cursor style based on current state.
+   */
+  const cursorStyle = useMemo((): string => {
+    if (isPanning) return 'grabbing';
+    if (isSpacePressed) return 'grab';
+    return 'default';
+  }, [isPanning, isSpacePressed]);
+
   return (
     <Stage
       ref={stageRef}
@@ -631,11 +818,14 @@ export function BoardCanvasComponent({
       y={viewport.y}
       scaleX={viewport.scale}
       scaleY={viewport.scale}
-      draggable
       onWheel={handleWheel}
-      onDragEnd={handleDragEnd}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
       onClick={handleStageClick}
       onTap={handleStageClick}
+      style={{ cursor: cursorStyle }}
     >
       {/* Background layer - grid pattern */}
       <Layer name="background" listening={false}>
@@ -651,6 +841,8 @@ export function BoardCanvasComponent({
       {/* Object layer - main content */}
       <Layer name="objects">
         {visibleObjects.map(renderObject)}
+        {/* Lasso selection overlay */}
+        <LassoOverlayComponent lassoState={lassoState} />
         {/* Transformer for selected objects */}
         {selectedNodes.length > 0 && (
           <TransformerComponent
