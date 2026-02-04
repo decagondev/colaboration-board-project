@@ -1,0 +1,43 @@
+---
+description: Do not use Husky for git hooks in any project
+alwaysApply: true
+---
+
+# No Husky Rule
+
+**Never use Husky** for git hooks in this project or any project.
+
+## Rationale
+
+- Adds unnecessary complexity to the development workflow
+- Can cause issues across different environments and CI/CD pipelines
+- Slows down commits with pre-commit hook overhead
+- Alternative approaches (manual linting, CI checks) are more reliable
+
+## What to Use Instead
+
+- **Manual linting**: Run `npm run lint` before commits
+- **CI/CD pipelines**: Enforce linting and tests in GitHub Actions or other CI
+- **npm scripts**: Add convenient scripts like `lint`, `lint:fix`, `format`, `check`
+
+## Forbidden Packages
+
+Do NOT install or suggest:
+- `husky`
+- `lint-staged` (often paired with Husky)
+- Any git hook management tools
+
+## Example npm Scripts
+
+```json
+{
+  "scripts": {
+    "lint": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,json,css}\"",
+    "check": "npm run lint && npm run format && tsc --noEmit"
+  }
+}
+```
+
+Developers should run `npm run check` manually before committing or rely on CI to catch issues.
