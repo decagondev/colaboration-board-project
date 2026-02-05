@@ -98,6 +98,25 @@ const FONT_SIZE_PRESETS = [
 ];
 
 /**
+ * Connector route style options.
+ */
+const ROUTE_STYLE_OPTIONS = [
+  { value: 'straight', label: 'Straight' },
+  { value: 'elbow', label: 'Elbow' },
+  { value: 'curved', label: 'Curved' },
+];
+
+/**
+ * Connector arrow style options.
+ */
+const ARROW_STYLE_OPTIONS = [
+  { value: 'none', label: 'None' },
+  { value: 'arrow', label: 'Arrow' },
+  { value: 'filled-arrow', label: 'Filled Arrow' },
+  { value: 'circle', label: 'Circle' },
+];
+
+/**
  * Get property sections based on object type.
  *
  * @param objectType - Type of the selected object
@@ -170,6 +189,47 @@ function getPropertySections(objectType: string): PropertySection[] {
     ],
   };
 
+  const connectorRouteSection: PropertySection = {
+    title: 'Route',
+    properties: [
+      {
+        key: 'routeStyle',
+        label: 'Route Style',
+        type: 'select',
+        dataKey: 'routeStyle',
+        options: ROUTE_STYLE_OPTIONS,
+      },
+    ],
+  };
+
+  const connectorArrowSection: PropertySection = {
+    title: 'Arrows',
+    properties: [
+      {
+        key: 'startArrow',
+        label: 'Start Arrow',
+        type: 'select',
+        dataKey: 'startArrow',
+        options: ARROW_STYLE_OPTIONS,
+      },
+      {
+        key: 'endArrow',
+        label: 'End Arrow',
+        type: 'select',
+        dataKey: 'endArrow',
+        options: ARROW_STYLE_OPTIONS,
+      },
+    ],
+  };
+
+  const connectorStrokeSection: PropertySection = {
+    title: 'Stroke',
+    properties: [
+      { key: 'strokeColor', label: 'Color', type: 'color', dataKey: 'strokeColor' },
+      { key: 'strokeWidth', label: 'Width', type: 'number', dataKey: 'strokeWidth', min: 1, max: 20, step: 1 },
+    ],
+  };
+
   switch (objectType) {
     case 'sticky-note':
       return [transformSection, stickyNoteColorSection, textSection];
@@ -177,6 +237,8 @@ function getPropertySections(objectType: string): PropertySection[] {
       return [textContentSection, textStyleSection, textTransformSection];
     case 'shape':
       return [transformSection, shapeColorSection];
+    case 'connector':
+      return [connectorRouteSection, connectorArrowSection, connectorStrokeSection];
     default:
       return [transformSection, baseColorSection];
   }
@@ -343,6 +405,13 @@ function PropertyEditor({ config, value, onChange }: PropertyEditorProps): JSX.E
     [onChange]
   );
 
+  const handleSelectChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      onChange(e.target.value);
+    },
+    [onChange]
+  );
+
   switch (config.type) {
     case 'number':
       return (
@@ -458,6 +527,24 @@ function PropertyEditor({ config, value, onChange }: PropertyEditorProps): JSX.E
             />
             <span style={fontSizeUnitStyles}>px</span>
           </div>
+        </div>
+      );
+
+    case 'select':
+      return (
+        <div style={propertyRowStyles}>
+          <label style={labelStyles}>{config.label}</label>
+          <select
+            value={(value as string) || config.options?.[0]?.value || ''}
+            onChange={handleSelectChange}
+            style={selectInputStyles}
+          >
+            {config.options?.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
       );
 
@@ -755,6 +842,25 @@ const fontSizeCustomInputStyles: React.CSSProperties = {
 const fontSizeUnitStyles: React.CSSProperties = {
   fontSize: '12px',
   color: '#6b7280',
+};
+
+/**
+ * Select input styles.
+ */
+const selectInputStyles: React.CSSProperties = {
+  width: '100%',
+  padding: '8px 10px',
+  fontSize: '13px',
+  border: '1px solid #e5e7eb',
+  borderRadius: '6px',
+  outline: 'none',
+  backgroundColor: '#ffffff',
+  cursor: 'pointer',
+  appearance: 'none',
+  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M3 4.5L6 7.5L9 4.5'/%3E%3C/svg%3E")`,
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'right 10px center',
+  paddingRight: '30px',
 };
 
 export default PropertiesPanelComponent;
