@@ -13,6 +13,7 @@ import {
   useBoard,
   ZoomControlsComponent,
   ToolbarComponent,
+  PropertiesPanelComponent,
 } from '@board/index';
 import type { BoardMetadata } from '@board/context/BoardContext';
 import type {
@@ -21,6 +22,8 @@ import type {
   RenderableObject,
   ViewportState,
   TransformEndEvent,
+  PropertyChangeEvent,
+  PropertyPanelObject,
 } from '@board/components';
 import type { SyncableObject } from '@sync/interfaces/ISyncService';
 import { generateUUID, measureText } from '@shared/utils';
@@ -609,6 +612,70 @@ function BoardZoomControls() {
 }
 
 /**
+ * Properties panel wrapper that connects to board context.
+ * Displays and edits properties of the currently selected object.
+ */
+function BoardPropertiesPanel() {
+  const { objects, selectedObjectIds, updateObject } = useBoard();
+
+  /**
+   * Get the first selected object for the properties panel.
+   * Currently supports single selection editing.
+   */
+  const selectedObject = useMemo((): PropertyPanelObject | null => {
+    if (selectedObjectIds.size === 0) return null;
+    
+    const firstSelectedId = Array.from(selectedObjectIds)[0];
+    const obj = objects.find((o) => o.id === firstSelectedId);
+    
+    if (!obj) return null;
+
+    return {
+      id: obj.id,
+      type: obj.type,
+      x: obj.x,
+      y: obj.y,
+      width: obj.width,
+      height: obj.height,
+      data: obj.data as Record<string, unknown> | undefined,
+    };
+  }, [objects, selectedObjectIds]);
+
+  /**
+   * Handle property change from the properties panel.
+   */
+  const handlePropertyChange = useCallback(
+    (event: PropertyChangeEvent) => {
+      const { objectId, property, value } = event;
+      const obj = objects.find((o) => o.id === objectId);
+      if (!obj) return;
+
+      if (property.startsWith('data.')) {
+        const dataKey = property.slice(5);
+        updateObject(objectId, {
+          data: {
+            ...obj.data,
+            [dataKey]: value,
+          },
+        });
+      } else {
+        updateObject(objectId, {
+          [property]: value,
+        });
+      }
+    },
+    [objects, updateObject]
+  );
+
+  return (
+    <PropertiesPanelComponent
+      selectedObject={selectedObject}
+      onPropertyChange={handlePropertyChange}
+    />
+  );
+}
+
+/**
  * Main Board Content Component.
  * Displays the authenticated user's board view with canvas and controls.
  */
@@ -725,6 +792,7 @@ function BoardContent() {
               showGrid={showGrid}
             />
             <BoardZoomControls />
+            <BoardPropertiesPanel />
           </CursorProvider>
         </BoardProvider>
       </main>

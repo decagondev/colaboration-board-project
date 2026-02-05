@@ -53,3 +53,10 @@ export type {
   GridOverlayComponentProps,
   GridConfig,
 } from './GridOverlayComponent';
+
+export { PropertiesPanelComponent } from './PropertiesPanelComponent';
+export type {
+  PropertiesPanelComponentProps,
+  PropertyChangeEvent,
+  PropertyPanelObject,
+} from './PropertiesPanelComponent';
