@@ -99,3 +99,16 @@ export {
   DEFAULT_CONTAINER_PADDING,
   AUTO_CONTAIN_THRESHOLD,
 } from './IContainer';
+
+export type {
+  LabelConfig,
+  ILabelable,
+} from './ILabelable';
+export {
+  DEFAULT_LABEL_CONFIG,
+  MIN_LABEL_FONT_SIZE,
+  MAX_LABEL_FONT_SIZE,
+  isLabelable,
+  calculateFitFontSize,
+  truncateText,
+} from './ILabelable';

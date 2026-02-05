@@ -30,6 +30,13 @@ import type {
   ConnectionAnchor,
 } from '../interfaces/IConnectable';
 import type { IContainable } from '../interfaces/IContainer';
+import type { ILabelable, LabelConfig } from '../interfaces/ILabelable';
+import {
+  DEFAULT_LABEL_CONFIG,
+  MIN_LABEL_FONT_SIZE,
+  MAX_LABEL_FONT_SIZE,
+  truncateText,
+} from '../interfaces/ILabelable';
 import {
   createDefaultTransform,
   DEFAULT_MIN_SIZE,
@@ -62,6 +69,8 @@ export interface ShapeData {
   cornerRadius?: number;
   /** Line endpoints for line shapes */
   points?: number[];
+  /** Label configuration */
+  label?: Partial<LabelConfig>;
 }
 
 /**
@@ -85,7 +94,7 @@ export const SHAPE_DEFAULTS: ShapeData = {
  * - Line
  */
 export class Shape
-  implements IBoardObject, ITransformable, ISelectable, IColorable, IConnectable, IContainable
+  implements IBoardObject, ITransformable, ISelectable, IColorable, IConnectable, IContainable, ILabelable
 {
   readonly id: string;
   readonly type = 'shape' as const;
@@ -109,6 +118,7 @@ export class Shape
   private _connectedIds: string[] = [];
   private _containerId: string | null = null;
   private _relativePosition: Position | null = null;
+  private _label: LabelConfig;
 
   /**
    * Creates a new Shape instance.
@@ -146,6 +156,12 @@ export class Shape
       fill: shapeData?.fillColor ?? SHAPE_DEFAULTS.fillColor,
       stroke: shapeData?.strokeColor ?? SHAPE_DEFAULTS.strokeColor,
       text: '#333333',
+    };
+
+    const labelData = shapeData?.label as Partial<LabelConfig> | undefined;
+    this._label = {
+      ...DEFAULT_LABEL_CONFIG,
+      ...labelData,
     };
   }
 
@@ -413,6 +429,7 @@ export class Shape
         strokeWidth: this._strokeWidth,
         cornerRadius: this._cornerRadius,
         points: this._points,
+        label: this._label.text ? { ...this._label } : undefined,
       },
     };
   }
@@ -741,5 +758,109 @@ export class Shape
    */
   setRelativePosition(position: Position): void {
     this._relativePosition = { ...position };
+  }
+
+  /**
+   * Whether this shape supports labels.
+   */
+  readonly isLabelable = true;
+
+  /**
+   * Get current label configuration.
+   */
+  get label(): LabelConfig {
+    return { ...this._label };
+  }
+
+  /**
+   * Set the label text.
+   *
+   * @param text - New label text
+   */
+  setLabelText(text: string): void {
+    this._label.text = text;
+    this.markModified();
+  }
+
+  /**
+   * Set the label font size.
+   *
+   * @param size - Font size in pixels
+   */
+  setLabelFontSize(size: number): void {
+    this._label.fontSize = Math.max(
+      MIN_LABEL_FONT_SIZE,
+      Math.min(MAX_LABEL_FONT_SIZE, size)
+    );
+    this.markModified();
+  }
+
+  /**
+   * Set the label color.
+   *
+   * @param color - Text color
+   */
+  setLabelColor(color: string): void {
+    this._label.color = color;
+    this.markModified();
+  }
+
+  /**
+   * Set label visibility.
+   *
+   * @param visible - Whether label is visible
+   */
+  setLabelVisible(visible: boolean): void {
+    this._label.visible = visible;
+    this.markModified();
+  }
+
+  /**
+   * Apply partial label configuration.
+   *
+   * @param config - Partial label config
+   */
+  applyLabelConfig(config: Partial<LabelConfig>): void {
+    if (config.text !== undefined) {
+      this._label.text = config.text;
+    }
+    if (config.fontSize !== undefined) {
+      this._label.fontSize = Math.max(
+        MIN_LABEL_FONT_SIZE,
+        Math.min(MAX_LABEL_FONT_SIZE, config.fontSize)
+      );
+    }
+    if (config.fontFamily !== undefined) {
+      this._label.fontFamily = config.fontFamily;
+    }
+    if (config.fontWeight !== undefined) {
+      this._label.fontWeight = config.fontWeight;
+    }
+    if (config.color !== undefined) {
+      this._label.color = config.color;
+    }
+    if (config.align !== undefined) {
+      this._label.align = config.align;
+    }
+    if (config.verticalAlign !== undefined) {
+      this._label.verticalAlign = config.verticalAlign;
+    }
+    if (config.visible !== undefined) {
+      this._label.visible = config.visible;
+    }
+    if (config.padding !== undefined) {
+      this._label.padding = Math.max(0, config.padding);
+    }
+    this.markModified();
+  }
+
+  /**
+   * Get display text, potentially truncated.
+   *
+   * @param maxWidth - Maximum width for text
+   * @returns Display text
+   */
+  getLabelDisplayText(maxWidth: number): string {
+    return truncateText(this._label.text, maxWidth, this._label.fontSize);
   }
 }

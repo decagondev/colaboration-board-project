@@ -21,6 +21,8 @@ import type { Position } from '../interfaces/IBoardObject';
 import type { ViewportState } from '../hooks/useViewport';
 import { FrameComponent } from './FrameComponent';
 import type { Frame } from '../objects/Frame';
+import { ObjectLabelComponent } from './ObjectLabelComponent';
+import type { LabelConfig } from '../interfaces/ILabelable';
 
 /**
  * Re-export ViewportState from the canonical location.
@@ -759,6 +761,8 @@ export function BoardCanvasComponent({
         );
       };
 
+      const labelConfig = obj.data?.label as Partial<LabelConfig> | undefined;
+
       return (
         <Group
           key={obj.id}
@@ -788,6 +792,14 @@ export function BoardCanvasComponent({
           }}
         >
           {renderShapeContent()}
+          {labelConfig?.text && (
+            <ObjectLabelComponent
+              label={labelConfig}
+              objectWidth={obj.width}
+              objectHeight={obj.height}
+              isSelected={isSelected}
+            />
+          )}
         </Group>
       );
     },
