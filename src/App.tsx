@@ -340,6 +340,29 @@ function BoardCanvasWithCursors({
   /**
    * Handle object drag end to update position and connected connectors.
    */
+  /**
+   * Find the nearest connection point to a target position.
+   */
+  const findNearestConnectionPoint = useCallback(
+    (points: { anchor: ConnectionAnchor; position: { x: number; y: number } }[], target: { x: number; y: number }) => {
+      let nearest = points[0];
+      let minDist = Infinity;
+      
+      for (const point of points) {
+        const dx = point.position.x - target.x;
+        const dy = point.position.y - target.y;
+        const dist = dx * dx + dy * dy;
+        if (dist < minDist) {
+          minDist = dist;
+          nearest = point;
+        }
+      }
+      
+      return nearest;
+    },
+    []
+  );
+
   const handleObjectDragEnd = useCallback(
     (objectId: string, x: number, y: number) => {
       updateObject(objectId, { x, y });
@@ -347,14 +370,12 @@ function BoardCanvasWithCursors({
       const movedObject = objects.find((o) => o.id === objectId);
       if (!movedObject) return;
       
-      const rotation = (movedObject.data?.rotation as number) ?? 0;
       const connectionPoints = calculateConnectionPoints(
         x,
         y,
         movedObject.width,
-        movedObject.height,
-        rotation
-      );
+        movedObject.height
+      ).filter(cp => cp.anchor !== 'center');
       
       objects
         .filter((obj) => obj.type === 'connector')
@@ -364,24 +385,22 @@ function BoardCanvasWithCursors({
           
           const updates: Record<string, unknown> = {};
           
-          if (startPoint?.objectId === objectId && startPoint.anchor) {
-            const anchorPoint = connectionPoints.find((cp) => cp.anchor === startPoint.anchor);
-            if (anchorPoint) {
-              updates.startPoint = {
-                ...startPoint,
-                position: anchorPoint.position,
-              };
-            }
+          if (startPoint?.objectId === objectId && endPoint?.position) {
+            const nearest = findNearestConnectionPoint(connectionPoints, endPoint.position);
+            updates.startPoint = {
+              ...startPoint,
+              anchor: nearest.anchor,
+              position: nearest.position,
+            };
           }
           
-          if (endPoint?.objectId === objectId && endPoint.anchor) {
-            const anchorPoint = connectionPoints.find((cp) => cp.anchor === endPoint.anchor);
-            if (anchorPoint) {
-              updates.endPoint = {
-                ...endPoint,
-                position: anchorPoint.position,
-              };
-            }
+          if (endPoint?.objectId === objectId && startPoint?.position) {
+            const nearest = findNearestConnectionPoint(connectionPoints, startPoint.position);
+            updates.endPoint = {
+              ...endPoint,
+              anchor: nearest.anchor,
+              position: nearest.position,
+            };
           }
           
           if (Object.keys(updates).length > 0) {
@@ -401,7 +420,7 @@ function BoardCanvasWithCursors({
           }
         });
     },
-    [updateObject, objects]
+    [updateObject, objects, findNearestConnectionPoint]
   );
 
   /**
@@ -539,9 +558,8 @@ function BoardCanvasWithCursors({
         event.x,
         event.y,
         finalWidth,
-        finalHeight,
-        event.rotation
-      );
+        finalHeight
+      ).filter(cp => cp.anchor !== 'center');
       
       objects
         .filter((connObj) => connObj.type === 'connector')
@@ -551,24 +569,22 @@ function BoardCanvasWithCursors({
           
           const updates: Record<string, unknown> = {};
           
-          if (startPoint?.objectId === event.objectId && startPoint.anchor) {
-            const anchorPoint = connectionPoints.find((cp) => cp.anchor === startPoint.anchor);
-            if (anchorPoint) {
-              updates.startPoint = {
-                ...startPoint,
-                position: anchorPoint.position,
-              };
-            }
+          if (startPoint?.objectId === event.objectId && endPoint?.position) {
+            const nearest = findNearestConnectionPoint(connectionPoints, endPoint.position);
+            updates.startPoint = {
+              ...startPoint,
+              anchor: nearest.anchor,
+              position: nearest.position,
+            };
           }
           
-          if (endPoint?.objectId === event.objectId && endPoint.anchor) {
-            const anchorPoint = connectionPoints.find((cp) => cp.anchor === endPoint.anchor);
-            if (anchorPoint) {
-              updates.endPoint = {
-                ...endPoint,
-                position: anchorPoint.position,
-              };
-            }
+          if (endPoint?.objectId === event.objectId && startPoint?.position) {
+            const nearest = findNearestConnectionPoint(connectionPoints, startPoint.position);
+            updates.endPoint = {
+              ...endPoint,
+              anchor: nearest.anchor,
+              position: nearest.position,
+            };
           }
           
           if (Object.keys(updates).length > 0) {
@@ -588,7 +604,7 @@ function BoardCanvasWithCursors({
           }
         });
     },
-    [updateObject, objects]
+    [updateObject, objects, findNearestConnectionPoint]
   );
 
   /**

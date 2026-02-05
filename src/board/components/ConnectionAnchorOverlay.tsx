@@ -207,16 +207,14 @@ function ObjectAnchors({
   onAnchorMouseEnter,
   onAnchorMouseLeave,
 }: ObjectAnchorsProps): JSX.Element {
-  const rotation = (object.data?.rotation as number) ?? 0;
   const connectionPoints = useMemo(() => {
     return calculateConnectionPoints(
       object.x,
       object.y,
       object.width,
-      object.height,
-      rotation
+      object.height
     ).filter((cp) => cp.anchor !== 'center');
-  }, [object.x, object.y, object.width, object.height, rotation]);
+  }, [object.x, object.y, object.width, object.height]);
 
   return (
     <Group key={`anchors-${object.id}`}>
