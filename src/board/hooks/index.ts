@@ -23,3 +23,9 @@ export type { UseSelectionReturn } from './useSelection';
 
 export { useCommandHistory } from './useCommandHistory';
 export type { UseCommandHistoryReturn } from './useCommandHistory';
+
+export { useConnectorCreation } from './useConnectorCreation';
+export type {
+  UseConnectorCreationConfig,
+  UseConnectorCreationReturn,
+} from './useConnectorCreation';
