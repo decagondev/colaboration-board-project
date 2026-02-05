@@ -38,6 +38,8 @@ function DelayRenderer(props: ShapeRenderProps): React.ReactElement {
     <Shape
       x={x}
       y={y}
+      width={width}
+      height={height}
       sceneFunc={(context, shape) => {
         context.beginPath();
         context.moveTo(0, 0);
