@@ -8,6 +8,7 @@
  */
 
 import { Circle, Group, Layer } from 'react-konva';
+import type Konva from 'konva';
 import { useCallback, useMemo } from 'react';
 import type {
   ConnectionAnchor,
@@ -121,9 +122,13 @@ function AnchorPoint({
 }: AnchorPointProps): JSX.Element {
   const { anchor, position } = connectionPoint;
 
-  const handleClick = useCallback(() => {
-    onClick?.(objectId, anchor, position);
-  }, [onClick, objectId, anchor, position]);
+  const handleClick = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      e.cancelBubble = true;
+      onClick?.(objectId, anchor, position);
+    },
+    [onClick, objectId, anchor, position]
+  );
 
   const handleMouseEnter = useCallback(() => {
     onMouseEnter?.(objectId, anchor, position);
@@ -132,6 +137,14 @@ function AnchorPoint({
   const handleMouseLeave = useCallback(() => {
     onMouseLeave?.(objectId, anchor);
   }, [onMouseLeave, objectId, anchor]);
+
+  const handleTap = useCallback(
+    (e: Konva.KonvaEventObject<TouchEvent>) => {
+      e.cancelBubble = true;
+      onClick?.(objectId, anchor, position);
+    },
+    [onClick, objectId, anchor, position]
+  );
 
   return (
     <Circle
@@ -142,7 +155,7 @@ function AnchorPoint({
       stroke={isHighlighted ? style.highlightStroke : style.stroke}
       strokeWidth={style.strokeWidth}
       onClick={handleClick}
-      onTap={handleClick}
+      onTap={handleTap}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       perfectDrawEnabled={false}
