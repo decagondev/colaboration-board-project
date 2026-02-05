@@ -212,9 +212,16 @@ export function BoardCanvasComponent({
 
   /**
    * Track space bar for pan mode.
+   * Ignores space key when focused on input/textarea elements.
    */
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent): void {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
       if (e.code === 'Space' && !e.repeat) {
         e.preventDefault();
         setIsSpacePressed(true);
