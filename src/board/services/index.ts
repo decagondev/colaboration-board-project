@@ -28,3 +28,9 @@ export type {
 } from './ClipboardService';
 
 export { ConnectionService, createConnectionService } from './ConnectionService';
+
+export { ContainerService, createContainerService } from './ContainerService';
+export type {
+  ContainerChangeListener,
+  IContainerService,
+} from './ContainerService';

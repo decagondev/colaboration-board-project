@@ -30,6 +30,7 @@ import type {
   ConnectionPoint,
   ConnectionAnchor,
 } from '../interfaces/IConnectable';
+import type { IContainable } from '../interfaces/IContainer';
 import {
   createDefaultTransform,
   DEFAULT_MIN_SIZE,
@@ -100,7 +101,8 @@ export class StickyNote
     ISelectable,
     IEditable,
     IColorable,
-    IConnectable
+    IConnectable,
+    IContainable
 {
   readonly id: string;
   readonly type = 'sticky-note' as const;
@@ -123,6 +125,8 @@ export class StickyNote
   private _fontSize: number;
   private _textAlign: 'left' | 'center' | 'right';
   private _connectedIds: string[] = [];
+  private _containerId: string | null = null;
+  private _relativePosition: Position | null = null;
 
   /**
    * Creates a new StickyNote instance.
@@ -674,4 +678,47 @@ export class StickyNote
   }
 
   readonly isConnectable = true;
+
+  /**
+   * ID of the container this sticky note is contained in.
+   */
+  get containerId(): string | null {
+    return this._containerId;
+  }
+
+  /**
+   * Whether this sticky note can be contained.
+   */
+  readonly isContainable = true;
+
+  /**
+   * Set the container for this sticky note.
+   *
+   * @param containerId - Container ID or null to remove from container
+   */
+  setContainer(containerId: string | null): void {
+    this._containerId = containerId;
+    if (containerId === null) {
+      this._relativePosition = null;
+    }
+    this.markModified();
+  }
+
+  /**
+   * Get the relative position within the container.
+   *
+   * @returns Relative position or null if not in a container
+   */
+  getRelativePosition(): Position | null {
+    return this._relativePosition ? { ...this._relativePosition } : null;
+  }
+
+  /**
+   * Set the relative position within the container.
+   *
+   * @param position - Relative position
+   */
+  setRelativePosition(position: Position): void {
+    this._relativePosition = { ...position };
+  }
 }

@@ -83,3 +83,19 @@ export type {
   IConnectionService,
 } from './IConnectionService';
 export { DEFAULT_CONNECTOR_DRAG_STATE } from './IConnectionService';
+
+export type {
+  SnapBehavior,
+  ContainerPadding,
+  AddChildOptions,
+  ContainmentCheckResult,
+  ContainerChangeEvent,
+  IContainer,
+  IContainable,
+} from './IContainer';
+export {
+  isContainer,
+  isContainable,
+  DEFAULT_CONTAINER_PADDING,
+  AUTO_CONTAIN_THRESHOLD,
+} from './IContainer';

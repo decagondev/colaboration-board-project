@@ -19,6 +19,8 @@ import type { ShapeType, ShapeRenderProps } from '../shapes';
 import type { ConnectorArrowStyle, ConnectorRouteStyle, ConnectorEndpoint } from '../objects/Connector';
 import type { Position } from '../interfaces/IBoardObject';
 import type { ViewportState } from '../hooks/useViewport';
+import { FrameComponent } from './FrameComponent';
+import type { Frame } from '../objects/Frame';
 
 /**
  * Re-export ViewportState from the canonical location.
@@ -102,6 +104,8 @@ export interface ConnectorPreview {
 export interface BoardCanvasProps {
   /** Array of objects to render on the canvas */
   objects?: RenderableObject[];
+  /** Array of Frame objects to render */
+  frames?: Frame[];
   /** Controlled viewport state */
   viewport?: ViewportState;
   /** Callback when viewport changes (for controlled mode) */
@@ -130,6 +134,10 @@ export interface BoardCanvasProps {
   gridConfig?: Partial<GridConfig>;
   /** Connector preview line (shown during connector creation) */
   connectorPreview?: ConnectorPreview;
+  /** ID of frame that is currently a valid drop target */
+  dropTargetFrameId?: string | null;
+  /** ID of frame that is being hovered for potential drop */
+  hoveredFrameId?: string | null;
   /** Children to render inside the canvas (custom layers) */
   children?: React.ReactNode;
 }
@@ -185,6 +193,7 @@ const STICKY_NOTE_SHADOW_OFFSET = 4;
  */
 export function BoardCanvasComponent({
   objects = [],
+  frames = [],
   viewport: controlledViewport,
   onViewportChange,
   onObjectSelect,
@@ -199,6 +208,8 @@ export function BoardCanvasComponent({
   showGrid = false,
   gridConfig,
   connectorPreview,
+  dropTargetFrameId,
+  hoveredFrameId,
   children,
 }: BoardCanvasProps): JSX.Element {
   const stageRef = useRef<Konva.Stage>(null);
@@ -1213,6 +1224,75 @@ export function BoardCanvasComponent({
   );
 
   /**
+   * Render a frame object using FrameComponent.
+   */
+  const renderFrame = useCallback(
+    (frame: Frame): JSX.Element => {
+      const isSelected = selectedIds.has(frame.id);
+      const isDropTarget = dropTargetFrameId === frame.id;
+      const isHoveredForDrop = hoveredFrameId === frame.id;
+      const childCount = frame.childIds.length;
+
+      return (
+        <FrameComponent
+          key={frame.id}
+          frame={frame}
+          isSelected={isSelected}
+          isDropTarget={isDropTarget}
+          isHoveredForDrop={isHoveredForDrop}
+          childCount={childCount}
+          onClick={(frameId, e) => {
+            e.cancelBubble = true;
+            objectClickedRef.current = true;
+            onObjectSelect?.(frameId);
+          }}
+          onDoubleClick={onObjectDoubleClick}
+          onDragStart={() => {}}
+          onDragEnd={(frameId, position) => {
+            onObjectDragEnd?.(frameId, position.x, position.y);
+          }}
+          onTransformEnd={(frameId, transform) => {
+            onObjectTransformEnd?.({
+              objectId: frameId,
+              x: transform.x,
+              y: transform.y,
+              width: transform.width,
+              height: transform.height,
+              rotation: transform.rotation,
+              scaleX: 1,
+              scaleY: 1,
+            });
+          }}
+        />
+      );
+    },
+    [
+      selectedIds,
+      dropTargetFrameId,
+      hoveredFrameId,
+      onObjectSelect,
+      onObjectDoubleClick,
+      onObjectDragEnd,
+      onObjectTransformEnd,
+    ]
+  );
+
+  /**
+   * Filter frames to only those visible in the viewport.
+   */
+  const visibleFrames = useMemo(() => {
+    return frames.filter((frame) => {
+      const bounds = frame.getBounds();
+      return isVisible({
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+      });
+    });
+  }, [frames, isVisible]);
+
+  /**
    * Render a single object based on its type.
    */
   const renderObject = useCallback(
@@ -1228,6 +1308,8 @@ export function BoardCanvasComponent({
           return renderTextObject(obj, isSelected);
         case 'connector':
           return renderConnector(obj, isSelected);
+        case 'frame':
+          return <Group key={obj.id} />;
         default:
           return (
             <Rect
@@ -1331,12 +1413,14 @@ export function BoardCanvasComponent({
 
       {/* Object layer - main content */}
       <Layer name="objects">
-        {/* 1. Render connector lines first (below shapes) */}
+        {/* 0. Render frames first (below everything else - they act as containers) */}
+        {visibleFrames.map(renderFrame)}
+        {/* 1. Render connector lines (below shapes) */}
         {visibleObjects.filter(obj => obj.type === 'connector').map(obj => 
           renderConnectorLine(obj, selectedIds.has(obj.id))
         )}
-        {/* 2. Render all shapes (above connector lines) */}
-        {visibleObjects.filter(obj => obj.type !== 'connector').map(renderObject)}
+        {/* 2. Render all shapes (above connector lines and frames) */}
+        {visibleObjects.filter(obj => obj.type !== 'connector' && obj.type !== 'frame').map(renderObject)}
         {/* 3. Render connector arrows and handles (above shapes) */}
         {visibleObjects.filter(obj => obj.type === 'connector').map(obj => 
           renderConnectorArrows(obj, selectedIds.has(obj.id))

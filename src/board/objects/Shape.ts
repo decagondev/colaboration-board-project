@@ -29,6 +29,7 @@ import type {
   ConnectionPoint,
   ConnectionAnchor,
 } from '../interfaces/IConnectable';
+import type { IContainable } from '../interfaces/IContainer';
 import {
   createDefaultTransform,
   DEFAULT_MIN_SIZE,
@@ -84,7 +85,7 @@ export const SHAPE_DEFAULTS: ShapeData = {
  * - Line
  */
 export class Shape
-  implements IBoardObject, ITransformable, ISelectable, IColorable, IConnectable
+  implements IBoardObject, ITransformable, ISelectable, IColorable, IConnectable, IContainable
 {
   readonly id: string;
   readonly type = 'shape' as const;
@@ -106,6 +107,8 @@ export class Shape
   private _cornerRadius: number;
   private _points: number[] | undefined;
   private _connectedIds: string[] = [];
+  private _containerId: string | null = null;
+  private _relativePosition: Position | null = null;
 
   /**
    * Creates a new Shape instance.
@@ -696,4 +699,47 @@ export class Shape
   }
 
   readonly isConnectable = true;
+
+  /**
+   * ID of the container this shape is contained in.
+   */
+  get containerId(): string | null {
+    return this._containerId;
+  }
+
+  /**
+   * Whether this shape can be contained.
+   */
+  readonly isContainable = true;
+
+  /**
+   * Set the container for this shape.
+   *
+   * @param containerId - Container ID or null to remove from container
+   */
+  setContainer(containerId: string | null): void {
+    this._containerId = containerId;
+    if (containerId === null) {
+      this._relativePosition = null;
+    }
+    this.markModified();
+  }
+
+  /**
+   * Get the relative position within the container.
+   *
+   * @returns Relative position or null if not in a container
+   */
+  getRelativePosition(): Position | null {
+    return this._relativePosition ? { ...this._relativePosition } : null;
+  }
+
+  /**
+   * Set the relative position within the container.
+   *
+   * @param position - Relative position
+   */
+  setRelativePosition(position: Position): void {
+    this._relativePosition = { ...position };
+  }
 }

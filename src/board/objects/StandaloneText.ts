@@ -21,6 +21,7 @@ import type {
 } from '../interfaces/ISelectable';
 import type { IEditable, EditMode } from '../interfaces/IEditable';
 import type { IColorable, Color, ColorScheme } from '../interfaces/IColorable';
+import type { IContainable } from '../interfaces/IContainer';
 import {
   DEFAULT_MIN_SIZE as _DEFAULT_MIN_SIZE,
   createDefaultTransform,
@@ -94,7 +95,7 @@ export const TEXT_DEFAULTS = {
  * - Color customization
  */
 export class StandaloneText
-  implements IBoardObject, ITransformable, ISelectable, IEditable, IColorable
+  implements IBoardObject, ITransformable, ISelectable, IEditable, IColorable, IContainable
 {
   readonly id: string;
   readonly type = 'text';
@@ -121,6 +122,8 @@ export class StandaloneText
   private _align: TextAlign;
   private _verticalAlign: TextVerticalAlign;
   private _lineHeight: number;
+  private _containerId: string | null = null;
+  private _relativePosition: Position | null = null;
 
   /**
    * Create a new StandaloneText instance.
@@ -643,4 +646,47 @@ export class StandaloneText
   readonly hasFill = true;
   readonly hasStroke = true;
   readonly hasTextColor = true;
+
+  /**
+   * ID of the container this text is contained in.
+   */
+  get containerId(): string | null {
+    return this._containerId;
+  }
+
+  /**
+   * Whether this text can be contained.
+   */
+  readonly isContainable = true;
+
+  /**
+   * Set the container for this text.
+   *
+   * @param containerId - Container ID or null to remove from container
+   */
+  setContainer(containerId: string | null): void {
+    this._containerId = containerId;
+    if (containerId === null) {
+      this._relativePosition = null;
+    }
+    this.markModified();
+  }
+
+  /**
+   * Get the relative position within the container.
+   *
+   * @returns Relative position or null if not in a container
+   */
+  getRelativePosition(): Position | null {
+    return this._relativePosition ? { ...this._relativePosition } : null;
+  }
+
+  /**
+   * Set the relative position within the container.
+   *
+   * @param position - Relative position
+   */
+  setRelativePosition(position: Position): void {
+    this._relativePosition = { ...position };
+  }
 }

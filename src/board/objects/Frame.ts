@@ -3,6 +3,9 @@
  *
  * A frame is a container that visually groups other board objects.
  * Objects can be added to a frame to organize content on the board.
+ * Implements IContainer for parent-child relationship management.
+ *
+ * @module board/objects/Frame
  */
 
 import type {
@@ -20,6 +23,13 @@ import type {
   HandlePosition,
 } from '../interfaces/ISelectable';
 import type { IColorable, Color, ColorScheme } from '../interfaces/IColorable';
+import type {
+  IContainer,
+  SnapBehavior,
+  ContainerPadding,
+  AddChildOptions,
+  ContainmentCheckResult,
+} from '../interfaces/IContainer';
 import {
   DEFAULT_MIN_SIZE as _DEFAULT_MIN_SIZE,
   createDefaultTransform,
@@ -30,6 +40,7 @@ import {
   HANDLE_CURSORS,
 } from '../interfaces/ISelectable';
 import { BOARD_COLORS, DEFAULT_COLOR_SCHEME } from '../interfaces/IColorable';
+import { DEFAULT_CONTAINER_PADDING } from '../interfaces/IContainer';
 import { generateUUID } from '@shared/utils/uuid';
 
 /**
@@ -44,6 +55,10 @@ export interface FrameData {
   showTitle: boolean;
   /** Background opacity (0-1) */
   backgroundOpacity: number;
+  /** Snap behavior for children */
+  snapBehavior?: SnapBehavior;
+  /** Custom padding for content area */
+  padding?: ContainerPadding;
 }
 
 /**
@@ -65,11 +80,12 @@ export const FRAME_DEFAULTS = {
  * They support:
  * - Titled headers
  * - Background fill
- * - Object containment tracking
+ * - Object containment tracking with snap behavior
  * - Resize and transform operations
+ * - Parent-child relationship management
  */
 export class Frame
-  implements IBoardObject, ITransformable, ISelectable, IColorable
+  implements IBoardObject, ITransformable, ISelectable, IColorable, IContainer
 {
   readonly id: string;
   readonly type = 'frame';
@@ -91,6 +107,8 @@ export class Frame
   private _childIds: string[];
   private _showTitle: boolean;
   private _backgroundOpacity: number;
+  private _snapBehavior: SnapBehavior;
+  private _padding: ContainerPadding;
 
   /**
    * Create a new Frame instance.
@@ -125,6 +143,8 @@ export class Frame
     this._childIds = [...frameData.childIds];
     this._showTitle = frameData.showTitle;
     this._backgroundOpacity = frameData.backgroundOpacity;
+    this._snapBehavior = frameData.snapBehavior ?? 'none';
+    this._padding = frameData.padding ?? { ...DEFAULT_CONTAINER_PADDING };
   }
 
   /**
@@ -143,6 +163,8 @@ export class Frame
     options?: Partial<FrameData> & {
       fillColor?: Color;
       strokeColor?: Color;
+      snapBehavior?: SnapBehavior;
+      padding?: ContainerPadding;
     }
   ): Frame {
     const now = Date.now();
@@ -167,6 +189,8 @@ export class Frame
         showTitle: options?.showTitle ?? FRAME_DEFAULTS.showTitle,
         backgroundOpacity:
           options?.backgroundOpacity ?? FRAME_DEFAULTS.backgroundOpacity,
+        snapBehavior: options?.snapBehavior,
+        padding: options?.padding,
       },
     });
 
@@ -212,60 +236,207 @@ export class Frame
   }
 
   /**
-   * Add an object to this frame.
-   *
-   * @param objectId - Object ID to add
+   * Whether this frame accepts child objects.
+   * Frames always accept children unless locked.
    */
-  addChild(objectId: string): void {
-    if (!this._childIds.includes(objectId)) {
-      this._childIds.push(objectId);
-      this.markModified();
-    }
+  get acceptsChildren(): boolean {
+    return !this._locked;
   }
 
   /**
-   * Remove an object from this frame.
-   *
-   * @param objectId - Object ID to remove
+   * Get the snap behavior for children.
    */
-  removeChild(objectId: string): void {
-    const index = this._childIds.indexOf(objectId);
-    if (index !== -1) {
-      this._childIds.splice(index, 1);
-      this.markModified();
-    }
+  get snapBehavior(): SnapBehavior {
+    return this._snapBehavior;
   }
 
   /**
-   * Check if an object is in this frame.
-   *
-   * @param objectId - Object ID to check
-   * @returns True if the object is in this frame
+   * Set the snap behavior for children.
    */
-  containsChild(objectId: string): boolean {
-    return this._childIds.includes(objectId);
-  }
-
-  /**
-   * Clear all children from this frame.
-   */
-  clearChildren(): void {
-    this._childIds = [];
+  set snapBehavior(value: SnapBehavior) {
+    this._snapBehavior = value;
     this.markModified();
   }
 
   /**
-   * Get the content area bounds (excluding title).
+   * Get the content padding.
+   */
+  get padding(): ContainerPadding {
+    return { ...this._padding };
+  }
+
+  /**
+   * Add a child object to this frame.
+   *
+   * @param childId - Object ID to add
+   * @param _options - Optional add configuration (snap, preservePosition, relativePosition)
+   * @returns True if the child was added successfully
+   */
+  addChild(childId: string, _options?: AddChildOptions): boolean {
+    if (this._childIds.includes(childId)) {
+      return false;
+    }
+    this._childIds.push(childId);
+    this.markModified();
+    return true;
+  }
+
+  /**
+   * Remove a child object from this frame.
+   *
+   * @param childId - Object ID to remove
+   * @returns True if the child was removed successfully
+   */
+  removeChild(childId: string): boolean {
+    const index = this._childIds.indexOf(childId);
+    if (index === -1) {
+      return false;
+    }
+    this._childIds.splice(index, 1);
+    this.markModified();
+    return true;
+  }
+
+  /**
+   * Check if this frame has a specific child.
+   *
+   * @param childId - Object ID to check
+   * @returns True if the child is in this frame
+   */
+  hasChild(childId: string): boolean {
+    return this._childIds.includes(childId);
+  }
+
+  /**
+   * Clear all children from this frame.
+   *
+   * @returns Array of removed child IDs
+   */
+  clearChildren(): string[] {
+    const removed = [...this._childIds];
+    this._childIds = [];
+    this.markModified();
+    return removed;
+  }
+
+  /**
+   * Reorder a child within the frame's child list.
+   *
+   * @param childId - ID of child to reorder
+   * @param newIndex - New index position
+   * @returns True if reorder was successful
+   */
+  reorderChild(childId: string, newIndex: number): boolean {
+    const currentIndex = this._childIds.indexOf(childId);
+    if (currentIndex === -1) {
+      return false;
+    }
+    const clampedIndex = Math.max(0, Math.min(newIndex, this._childIds.length - 1));
+    this._childIds.splice(currentIndex, 1);
+    this._childIds.splice(clampedIndex, 0, childId);
+    this.markModified();
+    return true;
+  }
+
+  /**
+   * Get the z-index offset for children in this container.
+   * Children should render above the frame itself.
+   *
+   * @returns Z-index offset to apply to children
+   */
+  getChildZIndexOffset(): number {
+    return 1;
+  }
+
+  /**
+   * Calculate the position delta when this container moves.
+   *
+   * @param oldPosition - Previous container position
+   * @param newPosition - New container position
+   * @returns Delta to apply to child positions
+   */
+  calculateChildPositionDelta(
+    oldPosition: Position,
+    newPosition: Position
+  ): Position {
+    return {
+      x: newPosition.x - oldPosition.x,
+      y: newPosition.y - oldPosition.y,
+    };
+  }
+
+  /**
+   * Check if an object's bounds would be contained by this frame.
+   *
+   * @param objectBounds - Bounds to check
+   * @returns Containment check result with overlap information
+   */
+  checkContainment(objectBounds: BoundingBox): ContainmentCheckResult {
+    const contentBounds = this.getContentBounds();
+
+    const overlapX = Math.max(
+      0,
+      Math.min(contentBounds.x + contentBounds.width, objectBounds.x + objectBounds.width) -
+        Math.max(contentBounds.x, objectBounds.x)
+    );
+    const overlapY = Math.max(
+      0,
+      Math.min(contentBounds.y + contentBounds.height, objectBounds.y + objectBounds.height) -
+        Math.max(contentBounds.y, objectBounds.y)
+    );
+
+    const overlapArea = overlapX * overlapY;
+    const objectArea = objectBounds.width * objectBounds.height;
+    const overlapPercentage = objectArea > 0 ? overlapArea / objectArea : 0;
+
+    const isContained =
+      objectBounds.x >= contentBounds.x &&
+      objectBounds.y >= contentBounds.y &&
+      objectBounds.x + objectBounds.width <= contentBounds.x + contentBounds.width &&
+      objectBounds.y + objectBounds.height <= contentBounds.y + contentBounds.height;
+
+    const isOverlapping = overlapArea > 0;
+
+    let suggestedPosition: Position | undefined;
+    if (!isContained && isOverlapping) {
+      suggestedPosition = {
+        x: Math.max(
+          contentBounds.x + this._padding.left,
+          Math.min(
+            objectBounds.x,
+            contentBounds.x + contentBounds.width - this._padding.right - objectBounds.width
+          )
+        ),
+        y: Math.max(
+          contentBounds.y + this._padding.top,
+          Math.min(
+            objectBounds.y,
+            contentBounds.y + contentBounds.height - this._padding.bottom - objectBounds.height
+          )
+        ),
+      };
+    }
+
+    return {
+      isContained,
+      isOverlapping,
+      overlapPercentage,
+      suggestedPosition,
+    };
+  }
+
+  /**
+   * Get the content area bounds (excluding title and applying padding).
    *
    * @returns Bounding box of content area
    */
   getContentBounds(): BoundingBox {
     const titleOffset = this._showTitle ? FRAME_DEFAULTS.titleHeight : 0;
     return {
-      x: this._position.x,
-      y: this._position.y + titleOffset,
-      width: this._size.width,
-      height: this._size.height - titleOffset,
+      x: this._position.x + this._padding.left,
+      y: this._position.y + titleOffset + this._padding.top,
+      width: this._size.width - this._padding.left - this._padding.right,
+      height: this._size.height - titleOffset - this._padding.top - this._padding.bottom,
     };
   }
 
@@ -383,6 +554,8 @@ export class Frame
         childIds: [...this._childIds],
         showTitle: this._showTitle,
         backgroundOpacity: this._backgroundOpacity,
+        snapBehavior: this._snapBehavior,
+        padding: { ...this._padding },
       },
     };
   }
