@@ -11,12 +11,13 @@ import type { ShapeType } from '../shapes';
 
 /**
  * Available tool types.
- * Includes basic tools and all shape types.
+ * Includes basic tools, connector tool, and all shape types.
  */
 export type ToolType =
   | 'select'
   | 'sticky-note'
   | 'text'
+  | 'connector'
   | ShapeType;
 
 /**
@@ -39,7 +40,7 @@ export interface ToolbarComponentProps {
  * Tool button configuration.
  */
 interface ToolButton {
-  id: ToolType | 'shapes';
+  id: ToolType | 'shapes' | 'connector';
   label: string;
   icon: string;
   shortcut?: string;
@@ -86,6 +87,7 @@ const TOOLS: ToolButton[] = [
   { id: 'rectangle', label: 'Rectangle', icon: '▢', shortcut: 'R' },
   { id: 'ellipse', label: 'Ellipse', icon: '○', shortcut: 'O' },
   { id: 'shapes', label: 'More Shapes', icon: '⬢', isShapesTrigger: true },
+  { id: 'connector', label: 'Connector', icon: '↔', shortcut: 'C' },
   { id: 'text', label: 'Text', icon: 'T', shortcut: 'T' },
 ];
 
