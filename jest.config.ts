@@ -14,6 +14,8 @@ const config: Config = {
     '^@ai/(.*)$': '<rootDir>/src/ai/$1',
     '^@shared/(.*)$': '<rootDir>/src/shared/$1',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
+    '^react-konva$': '<rootDir>/src/__mocks__/react-konva.tsx',
+    '^konva$': '<rootDir>/src/__mocks__/konva.ts',
   },
   setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts'],
   collectCoverageFrom: [

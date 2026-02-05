@@ -27,6 +27,14 @@ void _rectangleDefinition;
 void _ellipseDefinition;
 void _triangleDefinition;
 void _lineDefinition;
+import { umlClassDefinition } from './UmlClassRenderer';
+import { umlActorDefinition } from './UmlActorRenderer';
+import { umlInterfaceDefinition } from './UmlInterfaceRenderer';
+import { umlPackageDefinition } from './UmlPackageRenderer';
+import { umlComponentDefinition } from './UmlComponentRenderer';
+import { umlStateDefinition } from './UmlStateRenderer';
+import { umlLifelineDefinition } from './UmlLifelineRenderer';
+import { umlNoteDefinition } from './UmlNoteRenderer';
 import type { ShapeDefinition } from '../ShapeDefinition';
 
 /**
@@ -46,11 +54,26 @@ export const flowchartShapeDefinitions: ShapeDefinition[] = [
 ];
 
 /**
+ * All UML shape definitions.
+ */
+export const umlShapeDefinitions: ShapeDefinition[] = [
+  umlClassDefinition,
+  umlActorDefinition,
+  umlInterfaceDefinition,
+  umlPackageDefinition,
+  umlComponentDefinition,
+  umlStateDefinition,
+  umlLifelineDefinition,
+  umlNoteDefinition,
+];
+
+/**
  * All shape definitions combined.
  */
 export const allShapeDefinitions: ShapeDefinition[] = [
   ...basicShapeDefinitions,
   ...flowchartShapeDefinitions,
+  ...umlShapeDefinitions,
 ];
 
 /**
@@ -78,12 +101,25 @@ export function registerBasicShapes(): void {
 }
 
 /**
- * Registers all shapes (basic and flowchart) with the ShapeRegistry.
+ * Registers UML shapes with the ShapeRegistry.
+ * Should be called during application initialization.
+ */
+export function registerUmlShapes(): void {
+  for (const definition of umlShapeDefinitions) {
+    if (!ShapeRegistry.has(definition.type)) {
+      ShapeRegistry.register(definition);
+    }
+  }
+}
+
+/**
+ * Registers all shapes (basic, flowchart, and UML) with the ShapeRegistry.
  * Should be called during application initialization.
  */
 export function registerAllShapes(): void {
   registerBasicShapes();
   registerFlowchartShapes();
+  registerUmlShapes();
 }
 
 export { diamondDefinition } from './DiamondRenderer';
@@ -103,3 +139,11 @@ export {
   triangleDefinition,
   lineDefinition,
 } from './BasicShapeDefinitions';
+export { umlClassDefinition } from './UmlClassRenderer';
+export { umlActorDefinition } from './UmlActorRenderer';
+export { umlInterfaceDefinition } from './UmlInterfaceRenderer';
+export { umlPackageDefinition } from './UmlPackageRenderer';
+export { umlComponentDefinition } from './UmlComponentRenderer';
+export { umlStateDefinition } from './UmlStateRenderer';
+export { umlLifelineDefinition } from './UmlLifelineRenderer';
+export { umlNoteDefinition } from './UmlNoteRenderer';

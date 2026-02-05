@@ -9,7 +9,7 @@ import type { ReactElement } from 'react';
 
 /**
  * All supported shape types.
- * Includes basic shapes and flowchart shapes.
+ * Includes basic shapes, flowchart shapes, and UML shapes.
  */
 export type ShapeType =
   | 'rectangle'
@@ -25,12 +25,20 @@ export type ShapeType =
   | 'delay'
   | 'manual-input'
   | 'display'
-  | 'connector-shape';
+  | 'connector-shape'
+  | 'uml-class'
+  | 'uml-actor'
+  | 'uml-interface'
+  | 'uml-package'
+  | 'uml-component'
+  | 'uml-state'
+  | 'uml-lifeline'
+  | 'uml-note';
 
 /**
  * Shape category for grouping in the UI.
  */
-export type ShapeCategory = 'basic' | 'flowchart';
+export type ShapeCategory = 'basic' | 'flowchart' | 'uml';
 
 /**
  * Props passed to shape render functions.

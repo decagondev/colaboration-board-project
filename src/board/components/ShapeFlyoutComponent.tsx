@@ -31,12 +31,13 @@ export interface ShapeFlyoutComponentProps {
 const CATEGORY_LABELS: Record<ShapeCategory, string> = {
   basic: 'Basic Shapes',
   flowchart: 'Flowchart Shapes',
+  uml: 'UML Shapes',
 };
 
 /**
  * Order of category display.
  */
-const CATEGORY_ORDER: ShapeCategory[] = ['basic', 'flowchart'];
+const CATEGORY_ORDER: ShapeCategory[] = ['basic', 'flowchart', 'uml'];
 
 /**
  * Shape Flyout component for shape selection.
@@ -73,6 +74,7 @@ export function ShapeFlyoutComponent({
     const grouped: Record<ShapeCategory, ShapeDefinition[]> = {
       basic: [],
       flowchart: [],
+      uml: [],
     };
 
     for (const shape of ShapeRegistry.getAll()) {
