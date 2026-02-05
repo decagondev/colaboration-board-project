@@ -1077,6 +1077,7 @@ function BoardPropertiesPanel() {
   /**
    * Handle property change from the properties panel.
    * For text objects, snaps the container when font size or text content changes.
+   * Supports nested data paths like 'data.label.text'.
    */
   const handlePropertyChange = useCallback(
     (event: PropertyChangeEvent) => {
@@ -1085,17 +1086,34 @@ function BoardPropertiesPanel() {
       if (!obj) return;
 
       if (property.startsWith('data.')) {
-        const dataKey = property.slice(5);
-        const newData = {
-          ...obj.data,
-          [dataKey]: value,
-        };
+        const dataPath = property.slice(5);
+        const pathParts = dataPath.split('.');
+        
+        let newData: Record<string, unknown>;
+        
+        if (pathParts.length === 1) {
+          newData = {
+            ...obj.data,
+            [pathParts[0]]: value,
+          };
+        } else {
+          newData = { ...obj.data };
+          let current = newData;
+          
+          for (let i = 0; i < pathParts.length - 1; i++) {
+            const key = pathParts[i];
+            current[key] = { ...(current[key] as Record<string, unknown> || {}) };
+            current = current[key] as Record<string, unknown>;
+          }
+          
+          current[pathParts[pathParts.length - 1]] = value;
+        }
 
-        if (obj.type === 'text' && (dataKey === 'fontSize' || dataKey === 'text')) {
-          const textContent = dataKey === 'text' 
+        if (obj.type === 'text' && (dataPath === 'fontSize' || dataPath === 'text')) {
+          const textContent = dataPath === 'text' 
             ? (value as string) 
             : (obj.data?.text as string) || 'Text';
-          const fontSize = dataKey === 'fontSize' 
+          const fontSize = dataPath === 'fontSize' 
             ? (value as number) 
             : (obj.data?.fontSize as number) || 16;
 

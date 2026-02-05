@@ -190,6 +190,15 @@ function getPropertySections(objectType: string): PropertySection[] {
     ],
   };
 
+  const shapeLabelSection: PropertySection = {
+    title: 'Label',
+    properties: [
+      { key: 'labelText', label: 'Text', type: 'text', dataKey: 'label.text', placeholder: 'Enter label...' },
+      { key: 'labelFontSize', label: 'Font Size', type: 'number', dataKey: 'label.fontSize', min: 8, max: 72, step: 1 },
+      { key: 'labelColor', label: 'Color', type: 'color', dataKey: 'label.color' },
+    ],
+  };
+
   const connectorRouteSection: PropertySection = {
     title: 'Route',
     properties: [
@@ -237,7 +246,7 @@ function getPropertySections(objectType: string): PropertySection[] {
     case 'text':
       return [textContentSection, textStyleSection, textTransformSection];
     case 'shape':
-      return [transformSection, shapeColorSection];
+      return [transformSection, shapeColorSection, shapeLabelSection];
     case 'connector':
       return [connectorRouteSection, connectorArrowSection, connectorStrokeSection];
     default:
@@ -278,14 +287,26 @@ export function PropertiesPanelComponent({
   }, [selectedObject?.type]);
 
   /**
-   * Get the current value of a property.
+   * Get the current value of a property, supporting nested keys like 'label.text'.
    */
   const getPropertyValue = useCallback(
     (config: PropertyConfig): unknown => {
       if (!selectedObject) return '';
 
       if (config.dataKey) {
-        return selectedObject.data?.[config.dataKey] ?? getDefaultValue(config);
+        const keys = config.dataKey.split('.');
+        let value: unknown = selectedObject.data;
+        
+        for (const key of keys) {
+          if (value && typeof value === 'object') {
+            value = (value as Record<string, unknown>)[key];
+          } else {
+            value = undefined;
+            break;
+          }
+        }
+        
+        return value ?? getDefaultValue(config);
       }
 
       const value = selectedObject[config.key as keyof PropertyPanelObject];
@@ -475,6 +496,7 @@ function PropertyEditor({ config, value, onChange }: PropertyEditorProps): JSX.E
             type="text"
             value={(value as string) || ''}
             onChange={handleTextChange}
+            placeholder={config.placeholder}
             style={textInputStyles}
           />
         </div>
