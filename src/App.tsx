@@ -14,7 +14,9 @@ import {
   ZoomControlsComponent,
   ToolbarComponent,
   PropertiesPanelComponent,
+  ConnectionAnchorOverlay,
 } from '@board/index';
+import { useConnectorCreation } from '@board/hooks';
 import { AIProvider, AICommandBarWrapper, GlobalAIIndicator } from '@ai/index';
 import type { BoardMetadata } from '@board/context/BoardContext';
 import type {
@@ -26,6 +28,7 @@ import type {
   PropertyChangeEvent,
   PropertyPanelObject,
 } from '@board/components';
+import type { ConnectionAnchor } from '@board/interfaces';
 import type { SyncableObject } from '@sync/interfaces/ISyncService';
 import { generateUUID, measureText } from '@shared/utils';
 import { ShapeRegistry } from '@board/shapes';
@@ -111,6 +114,35 @@ function BoardCanvasWithCursors({
   });
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
+  const {
+    isCreating: isCreatingConnector,
+    dragState: connectorDragState,
+    startCreation: startConnectorCreation,
+    updatePosition: updateConnectorPosition,
+    checkAnchorProximity,
+    completeCreation: completeConnectorCreation,
+    cancelCreation: cancelConnectorCreation,
+  } = useConnectorCreation({ snapDistance: 25 });
+
+  const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null);
+  const [hoveredAnchor, setHoveredAnchor] = useState<ConnectionAnchor | null>(null);
+
+  /**
+   * Convert board objects to renderable format.
+   * Passes full data for type-specific rendering.
+   */
+  const renderableObjects = useMemo((): RenderableObject[] => {
+    return objects.map((obj) => ({
+      id: obj.id,
+      type: obj.type,
+      x: obj.x,
+      y: obj.y,
+      width: obj.width,
+      height: obj.height,
+      data: obj.data,
+    }));
+  }, [objects]);
+
   /**
    * Check if an input element is currently focused.
    */
@@ -146,16 +178,19 @@ function BoardCanvasWithCursors({
       }
 
       if (e.key === 'Escape') {
+        if (isCreatingConnector) {
+          cancelConnectorCreation();
+        }
         clearSelection();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedObjectIds, deleteObject, clearSelection, editingState.objectId, isInputFocused]);
+  }, [selectedObjectIds, deleteObject, clearSelection, editingState.objectId, isInputFocused, isCreatingConnector, cancelConnectorCreation]);
 
   /**
-   * Handle mouse move to track cursor position.
+   * Handle mouse move to track cursor position and connector drag.
    */
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -163,9 +198,102 @@ function BoardCanvasWithCursors({
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       updateCursorPosition(x, y);
+
+      if (isCreatingConnector) {
+        const canvasX = (x - viewport.x) / viewport.scale;
+        const canvasY = (y - viewport.y) / viewport.scale;
+        updateConnectorPosition({ x: canvasX, y: canvasY });
+        checkAnchorProximity(
+          { x: canvasX, y: canvasY },
+          renderableObjects,
+          connectorDragState.startObjectId
+        );
+      }
     },
-    [updateCursorPosition]
+    [
+      updateCursorPosition,
+      isCreatingConnector,
+      viewport,
+      updateConnectorPosition,
+      checkAnchorProximity,
+      renderableObjects,
+      connectorDragState.startObjectId,
+    ]
   );
+
+  /**
+   * Handle mouse up to complete connector creation.
+   */
+  const handleMouseUp = useCallback(() => {
+    if (isCreatingConnector) {
+      const result = completeConnectorCreation();
+      if (result) {
+        const now = Date.now();
+        const connectorObject: SyncableObject = {
+          id: result.id,
+          type: 'connector',
+          x: Math.min(result.startPoint.position.x, result.endPoint.position.x),
+          y: Math.min(result.startPoint.position.y, result.endPoint.position.y),
+          width: Math.abs(result.endPoint.position.x - result.startPoint.position.x) || 1,
+          height: Math.abs(result.endPoint.position.y - result.startPoint.position.y) || 1,
+          createdBy: userId,
+          createdAt: now,
+          modifiedBy: userId,
+          modifiedAt: now,
+          zIndex: objects.length + 1,
+          data: {
+            startPoint: result.startPoint,
+            endPoint: result.endPoint,
+            routeStyle: result.routeStyle,
+            startArrow: result.startArrow,
+            endArrow: result.endArrow,
+            strokeColor: result.strokeColor,
+            strokeWidth: result.strokeWidth,
+          },
+        };
+        createObject(connectorObject);
+      }
+      onToolReset();
+    }
+  }, [
+    isCreatingConnector,
+    completeConnectorCreation,
+    userId,
+    objects.length,
+    createObject,
+    onToolReset,
+  ]);
+
+  /**
+   * Handle anchor click to start connector creation.
+   */
+  const handleAnchorClick = useCallback(
+    (objectId: string, anchor: ConnectionAnchor, position: { x: number; y: number }) => {
+      if (activeTool === 'connector') {
+        startConnectorCreation(position, objectId, anchor);
+      }
+    },
+    [activeTool, startConnectorCreation]
+  );
+
+  /**
+   * Handle anchor hover for visual feedback.
+   */
+  const handleAnchorMouseEnter = useCallback(
+    (objectId: string, anchor: ConnectionAnchor) => {
+      setHoveredObjectId(objectId);
+      setHoveredAnchor(anchor);
+    },
+    []
+  );
+
+  /**
+   * Handle anchor mouse leave.
+   */
+  const handleAnchorMouseLeave = useCallback(() => {
+    setHoveredObjectId(null);
+    setHoveredAnchor(null);
+  }, []);
 
   /**
    * Handle object selection.
@@ -353,7 +481,7 @@ function BoardCanvasWithCursors({
    */
   const handleCanvasClick = useCallback(
     async (event: CanvasClickEvent) => {
-      if (activeTool === 'select') {
+      if (activeTool === 'select' || activeTool === 'connector') {
         return;
       }
 
@@ -472,22 +600,6 @@ function BoardCanvasWithCursors({
   );
 
   /**
-   * Convert board objects to renderable format.
-   * Passes full data for type-specific rendering.
-   */
-  const renderableObjects = useMemo((): RenderableObject[] => {
-    return objects.map((obj) => ({
-      id: obj.id,
-      type: obj.type,
-      x: obj.x,
-      y: obj.y,
-      width: obj.width,
-      height: obj.height,
-      data: obj.data,
-    }));
-  }, [objects]);
-
-  /**
    * Handle container click for object creation.
    * This bypasses Konva's event system which may not receive browser automation clicks.
    */
@@ -498,7 +610,7 @@ function BoardCanvasWithCursors({
         return;
       }
 
-      if (activeTool === 'select') {
+      if (activeTool === 'select' || activeTool === 'connector') {
         return;
       }
 
@@ -623,11 +735,22 @@ function BoardCanvasWithCursors({
     [activeTool, viewport, userId, objects.length, createObject, onToolReset]
   );
 
+  /**
+   * Determine the highlighted object and anchor for the overlay.
+   */
+  const overlayHighlightedObjectId = isCreatingConnector
+    ? connectorDragState.hoveredObjectId
+    : hoveredObjectId;
+  const overlayHighlightedAnchor = isCreatingConnector
+    ? connectorDragState.nearestAnchor
+    : hoveredAnchor;
+
   return (
     <div
       ref={containerRef}
       className="board-canvas-container"
       onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
       onClick={handleContainerClick}
       tabIndex={0}
     >
@@ -647,6 +770,15 @@ function BoardCanvasWithCursors({
         showGrid={showGrid}
       >
         <CursorOverlayComponent />
+        <ConnectionAnchorOverlay
+          objects={renderableObjects}
+          visible={activeTool === 'connector'}
+          highlightedObjectId={overlayHighlightedObjectId}
+          highlightedAnchor={overlayHighlightedAnchor}
+          onAnchorClick={handleAnchorClick}
+          onAnchorMouseEnter={handleAnchorMouseEnter}
+          onAnchorMouseLeave={handleAnchorMouseLeave}
+        />
       </BoardCanvasComponent>
     </div>
   );
@@ -839,6 +971,9 @@ function BoardContent() {
           break;
         case 't':
           setActiveTool('text');
+          break;
+        case 'c':
+          setActiveTool('connector');
           break;
       }
     };
