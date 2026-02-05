@@ -26,3 +26,5 @@ export type {
   ClipboardChangeEvent,
   IClipboardService,
 } from './ClipboardService';
+
+export { ConnectionService, createConnectionService } from './ConnectionService';

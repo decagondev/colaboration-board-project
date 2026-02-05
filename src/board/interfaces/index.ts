@@ -74,3 +74,12 @@ export type {
   ICommandHistory,
 } from './ICommand';
 export { DEFAULT_COMMAND_HISTORY_OPTIONS } from './ICommand';
+
+export type {
+  ConnectorDragState,
+  ConnectorCreationOptions,
+  ConnectorCreationResult,
+  ConnectionChangeEvent,
+  IConnectionService,
+} from './IConnectionService';
+export { DEFAULT_CONNECTOR_DRAG_STATE } from './IConnectionService';
