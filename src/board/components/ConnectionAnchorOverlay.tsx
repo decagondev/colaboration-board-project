@@ -7,7 +7,7 @@
  * @module board/components/ConnectionAnchorOverlay
  */
 
-import { Circle, Group } from 'react-konva';
+import { Circle, Group, Layer } from 'react-konva';
 import { useCallback, useMemo } from 'react';
 import type {
   ConnectionAnchor,
@@ -230,7 +230,7 @@ function ObjectAnchors({
  * - Providing click/hover callbacks for connector attachment logic
  *
  * @param props - Component properties
- * @returns Konva Group containing all anchor overlays, or null if not visible
+ * @returns Konva Layer containing all anchor overlays, or null if not visible
  *
  * @example
  * ```tsx
@@ -275,7 +275,7 @@ export function ConnectionAnchorOverlay({
   }
 
   return (
-    <Group>
+    <Layer listening={true}>
       {connectableObjects.map((obj) => (
         <ObjectAnchors
           key={`obj-anchors-${obj.id}`}
@@ -290,7 +290,7 @@ export function ConnectionAnchorOverlay({
           onAnchorMouseLeave={onAnchorMouseLeave}
         />
       ))}
-    </Group>
+    </Layer>
   );
 }
 

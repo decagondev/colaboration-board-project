@@ -15,6 +15,11 @@ jest.mock('react-konva', () => ({
       {children}
     </div>
   )),
+  Layer: jest.fn(({ children, ...props }) => (
+    <div data-testid="konva-layer" {...props}>
+      {children}
+    </div>
+  )),
 }));
 
 jest.mock('konva', () => ({}));
