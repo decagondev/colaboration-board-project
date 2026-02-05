@@ -942,10 +942,23 @@ export function BoardCanvasComponent({
 
       const startPos = startPoint.position;
       const endPos = endPoint.position;
-      const points = getConnectorPoints(startPos, endPos, routeStyle);
       const direction = calculateDirection(startPos, endPos);
       const reverseDirection = { x: -direction.x, y: -direction.y };
       const arrowSize = strokeWidth * 4;
+      
+      const startArrowOffset = startArrow !== 'none' ? arrowSize * 0.8 : 0;
+      const endArrowOffset = endArrow !== 'none' ? arrowSize * 0.8 : 0;
+      
+      const adjustedStartPos: Position = {
+        x: startPos.x + direction.x * startArrowOffset,
+        y: startPos.y + direction.y * startArrowOffset,
+      };
+      const adjustedEndPos: Position = {
+        x: endPos.x - direction.x * endArrowOffset,
+        y: endPos.y - direction.y * endArrowOffset,
+      };
+      
+      const points = getConnectorPoints(adjustedStartPos, adjustedEndPos, routeStyle);
 
       return (
         <Group
