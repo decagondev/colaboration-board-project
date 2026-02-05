@@ -223,9 +223,22 @@ function BoardCanvasWithCursors({
 
   /**
    * Handle mouse up to complete connector creation.
+   * Only completes if the user has dragged to a valid target (different from start).
    */
   const handleMouseUp = useCallback(() => {
     if (isCreatingConnector) {
+      const { startPosition, currentPosition, startObjectId, hoveredObjectId } = connectorDragState;
+      
+      const hasMovedSignificantly = 
+        Math.abs(currentPosition.x - startPosition.x) > 5 ||
+        Math.abs(currentPosition.y - startPosition.y) > 5;
+      
+      const hasValidTarget = hoveredObjectId !== null && hoveredObjectId !== startObjectId;
+      
+      if (!hasMovedSignificantly && !hasValidTarget) {
+        return;
+      }
+      
       const result = completeConnectorCreation();
       if (result) {
         const now = Date.now();
@@ -257,6 +270,7 @@ function BoardCanvasWithCursors({
     }
   }, [
     isCreatingConnector,
+    connectorDragState,
     completeConnectorCreation,
     userId,
     objects.length,
