@@ -29,7 +29,6 @@ import type {
   PropertyPanelObject,
 } from '@board/components';
 import type { ConnectionAnchor } from '@board/interfaces';
-import { calculateConnectionPoints } from '@board/interfaces';
 import type { SyncableObject } from '@sync/interfaces/ISyncService';
 import { generateUUID, measureText } from '@shared/utils';
 import { ShapeRegistry } from '@board/shapes';
@@ -341,24 +340,43 @@ function BoardCanvasWithCursors({
    * Handle object drag end to update position and connected connectors.
    */
   /**
-   * Find the nearest connection point to a target position.
+   * Calculate the edge point on a rectangle given the angle from center to target.
+   * This finds where a line from center to target intersects the rectangle edge.
    */
-  const findNearestConnectionPoint = useCallback(
-    (points: { anchor: ConnectionAnchor; position: { x: number; y: number } }[], target: { x: number; y: number }) => {
-      let nearest = points[0];
-      let minDist = Infinity;
+  const getEdgePoint = useCallback(
+    (
+      centerX: number,
+      centerY: number,
+      width: number,
+      height: number,
+      targetX: number,
+      targetY: number
+    ): { x: number; y: number } => {
+      const dx = targetX - centerX;
+      const dy = targetY - centerY;
       
-      for (const point of points) {
-        const dx = point.position.x - target.x;
-        const dy = point.position.y - target.y;
-        const dist = dx * dx + dy * dy;
-        if (dist < minDist) {
-          minDist = dist;
-          nearest = point;
-        }
+      if (dx === 0 && dy === 0) {
+        return { x: centerX, y: centerY };
       }
       
-      return nearest;
+      const halfWidth = width / 2;
+      const halfHeight = height / 2;
+      
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+      
+      let edgeX: number;
+      let edgeY: number;
+      
+      if (absDx * halfHeight > absDy * halfWidth) {
+        edgeX = centerX + (dx > 0 ? halfWidth : -halfWidth);
+        edgeY = centerY + (dy * halfWidth) / absDx;
+      } else {
+        edgeX = centerX + (dx * halfHeight) / absDy;
+        edgeY = centerY + (dy > 0 ? halfHeight : -halfHeight);
+      }
+      
+      return { x: edgeX, y: edgeY };
     },
     []
   );
@@ -370,14 +388,8 @@ function BoardCanvasWithCursors({
       const movedObject = objects.find((o) => o.id === objectId);
       if (!movedObject) return;
       
-      const rotation = (movedObject.data?.rotation as number) ?? 0;
-      const connectionPoints = calculateConnectionPoints(
-        x,
-        y,
-        movedObject.width,
-        movedObject.height,
-        rotation
-      ).filter(cp => cp.anchor !== 'center');
+      const movedCenterX = x + movedObject.width / 2;
+      const movedCenterY = y + movedObject.height / 2;
       
       objects
         .filter((obj) => obj.type === 'connector')
@@ -385,44 +397,47 @@ function BoardCanvasWithCursors({
           const startPoint = connector.data?.startPoint as { objectId?: string; anchor?: ConnectionAnchor; position?: { x: number; y: number } } | undefined;
           const endPoint = connector.data?.endPoint as { objectId?: string; anchor?: ConnectionAnchor; position?: { x: number; y: number } } | undefined;
           
-          const updates: Record<string, unknown> = {};
+          if (!startPoint?.objectId || !endPoint?.objectId) return;
           
-          if (startPoint?.objectId === objectId && endPoint?.position) {
-            const nearest = findNearestConnectionPoint(connectionPoints, endPoint.position);
-            updates.startPoint = {
-              ...startPoint,
-              anchor: nearest.anchor,
-              position: nearest.position,
-            };
-          }
+          const startObj = startPoint.objectId === objectId 
+            ? { ...movedObject, x, y }
+            : objects.find((o) => o.id === startPoint.objectId);
+          const endObj = endPoint.objectId === objectId
+            ? { ...movedObject, x, y }
+            : objects.find((o) => o.id === endPoint.objectId);
           
-          if (endPoint?.objectId === objectId && startPoint?.position) {
-            const nearest = findNearestConnectionPoint(connectionPoints, startPoint.position);
-            updates.endPoint = {
-              ...endPoint,
-              anchor: nearest.anchor,
-              position: nearest.position,
-            };
-          }
+          if (!startObj || !endObj) return;
           
-          if (Object.keys(updates).length > 0) {
-            const newStartPos = (updates.startPoint as { position: { x: number; y: number } })?.position ?? startPoint?.position ?? { x: 0, y: 0 };
-            const newEndPos = (updates.endPoint as { position: { x: number; y: number } })?.position ?? endPoint?.position ?? { x: 0, y: 0 };
-            
-            updateObject(connector.id, {
-              x: Math.min(newStartPos.x, newEndPos.x),
-              y: Math.min(newStartPos.y, newEndPos.y),
-              width: Math.abs(newEndPos.x - newStartPos.x) || 1,
-              height: Math.abs(newEndPos.y - newStartPos.y) || 1,
-              data: {
-                ...connector.data,
-                ...updates,
-              },
-            });
-          }
+          const startCenterX = startObj.x + startObj.width / 2;
+          const startCenterY = startObj.y + startObj.height / 2;
+          const endCenterX = endObj.x + endObj.width / 2;
+          const endCenterY = endObj.y + endObj.height / 2;
+          
+          const newStartPos = getEdgePoint(
+            startCenterX, startCenterY,
+            startObj.width, startObj.height,
+            endCenterX, endCenterY
+          );
+          const newEndPos = getEdgePoint(
+            endCenterX, endCenterY,
+            endObj.width, endObj.height,
+            startCenterX, startCenterY
+          );
+          
+          updateObject(connector.id, {
+            x: Math.min(newStartPos.x, newEndPos.x),
+            y: Math.min(newStartPos.y, newEndPos.y),
+            width: Math.abs(newEndPos.x - newStartPos.x) || 1,
+            height: Math.abs(newEndPos.y - newStartPos.y) || 1,
+            data: {
+              ...connector.data,
+              startPoint: { ...startPoint, position: newStartPos },
+              endPoint: { ...endPoint, position: newEndPos },
+            },
+          });
         });
     },
-    [updateObject, objects, findNearestConnectionPoint]
+    [updateObject, objects, getEdgePoint]
   );
 
   /**
@@ -556,13 +571,7 @@ function BoardCanvasWithCursors({
         data: updatedData,
       });
       
-      const connectionPoints = calculateConnectionPoints(
-        event.x,
-        event.y,
-        finalWidth,
-        finalHeight,
-        event.rotation
-      ).filter(cp => cp.anchor !== 'center');
+      const transformedObj = { x: event.x, y: event.y, width: finalWidth, height: finalHeight };
       
       objects
         .filter((connObj) => connObj.type === 'connector')
@@ -570,44 +579,47 @@ function BoardCanvasWithCursors({
           const startPoint = connector.data?.startPoint as { objectId?: string; anchor?: ConnectionAnchor; position?: { x: number; y: number } } | undefined;
           const endPoint = connector.data?.endPoint as { objectId?: string; anchor?: ConnectionAnchor; position?: { x: number; y: number } } | undefined;
           
-          const updates: Record<string, unknown> = {};
+          if (!startPoint?.objectId || !endPoint?.objectId) return;
           
-          if (startPoint?.objectId === event.objectId && endPoint?.position) {
-            const nearest = findNearestConnectionPoint(connectionPoints, endPoint.position);
-            updates.startPoint = {
-              ...startPoint,
-              anchor: nearest.anchor,
-              position: nearest.position,
-            };
-          }
+          const startObj = startPoint.objectId === event.objectId 
+            ? transformedObj
+            : objects.find((o) => o.id === startPoint.objectId);
+          const endObj = endPoint.objectId === event.objectId
+            ? transformedObj
+            : objects.find((o) => o.id === endPoint.objectId);
           
-          if (endPoint?.objectId === event.objectId && startPoint?.position) {
-            const nearest = findNearestConnectionPoint(connectionPoints, startPoint.position);
-            updates.endPoint = {
-              ...endPoint,
-              anchor: nearest.anchor,
-              position: nearest.position,
-            };
-          }
+          if (!startObj || !endObj) return;
           
-          if (Object.keys(updates).length > 0) {
-            const newStartPos = (updates.startPoint as { position: { x: number; y: number } })?.position ?? startPoint?.position ?? { x: 0, y: 0 };
-            const newEndPos = (updates.endPoint as { position: { x: number; y: number } })?.position ?? endPoint?.position ?? { x: 0, y: 0 };
-            
-            updateObject(connector.id, {
-              x: Math.min(newStartPos.x, newEndPos.x),
-              y: Math.min(newStartPos.y, newEndPos.y),
-              width: Math.abs(newEndPos.x - newStartPos.x) || 1,
-              height: Math.abs(newEndPos.y - newStartPos.y) || 1,
-              data: {
-                ...connector.data,
-                ...updates,
-              },
-            });
-          }
+          const startCenterX = startObj.x + startObj.width / 2;
+          const startCenterY = startObj.y + startObj.height / 2;
+          const endCenterX = endObj.x + endObj.width / 2;
+          const endCenterY = endObj.y + endObj.height / 2;
+          
+          const newStartPos = getEdgePoint(
+            startCenterX, startCenterY,
+            startObj.width, startObj.height,
+            endCenterX, endCenterY
+          );
+          const newEndPos = getEdgePoint(
+            endCenterX, endCenterY,
+            endObj.width, endObj.height,
+            startCenterX, startCenterY
+          );
+          
+          updateObject(connector.id, {
+            x: Math.min(newStartPos.x, newEndPos.x),
+            y: Math.min(newStartPos.y, newEndPos.y),
+            width: Math.abs(newEndPos.x - newStartPos.x) || 1,
+            height: Math.abs(newEndPos.y - newStartPos.y) || 1,
+            data: {
+              ...connector.data,
+              startPoint: { ...startPoint, position: newStartPos },
+              endPoint: { ...endPoint, position: newEndPos },
+            },
+          });
         });
     },
-    [updateObject, objects, findNearestConnectionPoint]
+    [updateObject, objects, getEdgePoint]
   );
 
   /**
