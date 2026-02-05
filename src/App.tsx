@@ -109,6 +109,18 @@ function BoardCanvasWithCursors({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   /**
+   * Check if an input element is currently focused.
+   */
+  const isInputFocused = useCallback((): boolean => {
+    const activeElement = document.activeElement;
+    return (
+      activeElement instanceof HTMLInputElement ||
+      activeElement instanceof HTMLTextAreaElement ||
+      (activeElement as HTMLElement)?.isContentEditable === true
+    );
+  }, []);
+
+  /**
    * Handle keyboard events for delete and other shortcuts.
    * Ignores events when user is focused on input/textarea elements.
    */
@@ -116,10 +128,7 @@ function BoardCanvasWithCursors({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (editingState.objectId) return;
 
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      ) {
+      if (isInputFocused()) {
         return;
       }
 
@@ -140,7 +149,7 @@ function BoardCanvasWithCursors({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedObjectIds, deleteObject, clearSelection, editingState.objectId]);
+  }, [selectedObjectIds, deleteObject, clearSelection, editingState.objectId, isInputFocused]);
 
   /**
    * Handle mouse move to track cursor position.

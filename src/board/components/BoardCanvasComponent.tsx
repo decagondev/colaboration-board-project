@@ -215,11 +215,17 @@ export function BoardCanvasComponent({
    * Ignores space key when focused on input/textarea elements.
    */
   useEffect(() => {
+    function isInputFocused(): boolean {
+      const activeElement = document.activeElement;
+      return (
+        activeElement instanceof HTMLInputElement ||
+        activeElement instanceof HTMLTextAreaElement ||
+        (activeElement as HTMLElement)?.isContentEditable === true
+      );
+    }
+
     function handleKeyDown(e: KeyboardEvent): void {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      ) {
+      if (isInputFocused()) {
         return;
       }
       if (e.code === 'Space' && !e.repeat) {
