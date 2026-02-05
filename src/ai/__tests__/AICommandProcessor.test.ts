@@ -5,10 +5,9 @@
  */
 
 import { AICommandProcessor } from '../services/AICommandProcessor';
-import type { AICommandProcessorConfig, ProcessingResult } from '../services/AICommandProcessor';
-import type { IAIService, IBoardStateService, AICommandResult, ToolCall } from '../interfaces/IAIService';
-import type { IAICommandQueue, QueuedCommand, CommandQueueStatus, QueueCallback } from '../interfaces/IAICommandQueue';
-import type { Unsubscribe } from '@shared/types';
+import type { AICommandProcessorConfig } from '../services/AICommandProcessor';
+import type { IAIService, IBoardStateService, ToolCall } from '../interfaces/IAIService';
+import type { IAICommandQueue, QueuedCommand, QueueCallback } from '../interfaces/IAICommandQueue';
 
 describe('AICommandProcessor', () => {
   let mockAIService: jest.Mocked<IAIService>;
@@ -32,8 +31,9 @@ describe('AICommandProcessor', () => {
       createObject: jest.fn(),
       updateObject: jest.fn(),
       deleteObject: jest.fn(),
+      deleteObjects: jest.fn(),
       getObject: jest.fn(),
-      getAllObjects: jest.fn(),
+      getObjects: jest.fn().mockReturnValue([]),
     };
 
     mockQueueService = {
@@ -44,7 +44,7 @@ describe('AICommandProcessor', () => {
       getCommand: jest.fn(),
       getCommands: jest.fn(),
       getProcessingCommand: jest.fn(),
-      subscribe: jest.fn((boardId, callback, options) => {
+      subscribe: jest.fn((_boardId, callback) => {
         capturedCallback = callback;
         return jest.fn();
       }),
@@ -156,16 +156,13 @@ describe('AICommandProcessor', () => {
     };
 
     const mockToolCall: ToolCall = {
+      id: 'call-1',
       name: 'createStickyNote',
       arguments: { text: 'Test note' },
     };
 
     it('processes pending commands from the queue', async () => {
-      mockAIService.processCommand.mockResolvedValue({
-        success: true,
-        message: 'Created sticky note',
-        toolCalls: [mockToolCall],
-      });
+      mockAIService.processCommand.mockResolvedValue([mockToolCall]);
 
       processor.start('board-1');
 
@@ -181,16 +178,13 @@ describe('AICommandProcessor', () => {
         'processing'
       );
       expect(mockAIService.processCommand).toHaveBeenCalledWith(
-        'Create a sticky note'
+        'Create a sticky note',
+        []
       );
     });
 
     it('marks command as completed on success', async () => {
-      mockAIService.processCommand.mockResolvedValue({
-        success: true,
-        message: 'Created sticky note',
-        toolCalls: [mockToolCall],
-      });
+      mockAIService.processCommand.mockResolvedValue([mockToolCall]);
 
       processor.start('board-1');
 
@@ -207,12 +201,8 @@ describe('AICommandProcessor', () => {
       );
     });
 
-    it('marks command as failed on AI error', async () => {
-      mockAIService.processCommand.mockResolvedValue({
-        success: false,
-        message: 'Failed',
-        errors: ['Invalid command'],
-      });
+    it('marks command as completed when no tool calls', async () => {
+      mockAIService.processCommand.mockResolvedValue([]);
 
       processor.start('board-1');
 
@@ -222,10 +212,10 @@ describe('AICommandProcessor', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      expect(mockQueueService.fail).toHaveBeenCalledWith(
+      expect(mockQueueService.complete).toHaveBeenCalledWith(
         'board-1',
         'cmd-1',
-        'Invalid command'
+        []
       );
     });
 
@@ -259,11 +249,7 @@ describe('AICommandProcessor', () => {
         createdAt: 2000,
       };
 
-      mockAIService.processCommand.mockResolvedValue({
-        success: true,
-        message: 'Done',
-        toolCalls: [],
-      });
+      mockAIService.processCommand.mockResolvedValue([]);
 
       processor.start('board-1');
 
@@ -282,11 +268,7 @@ describe('AICommandProcessor', () => {
 
     it('calls onComplete callback with results', async () => {
       const onComplete = jest.fn();
-      mockAIService.processCommand.mockResolvedValue({
-        success: true,
-        message: 'Done',
-        toolCalls: [mockToolCall],
-      });
+      mockAIService.processCommand.mockResolvedValue([mockToolCall]);
 
       processor.start('board-1', onComplete);
 
@@ -307,11 +289,7 @@ describe('AICommandProcessor', () => {
 
     it('calls onComplete callback with error on failure', async () => {
       const onComplete = jest.fn();
-      mockAIService.processCommand.mockResolvedValue({
-        success: false,
-        message: 'Failed',
-        errors: ['Something went wrong'],
-      });
+      mockAIService.processCommand.mockRejectedValue(new Error('Something went wrong'));
 
       processor.start('board-1', onComplete);
 
@@ -356,8 +334,8 @@ describe('AICommandProcessor', () => {
     });
 
     it('does not process if already processing a command', async () => {
-      let resolveFirst: ((value: AICommandResult) => void) | null = null;
-      const processingPromise = new Promise<AICommandResult>((resolve) => {
+      let resolveFirst: ((value: ToolCall[]) => void) | null = null;
+      const processingPromise = new Promise<ToolCall[]>((resolve) => {
         resolveFirst = resolve;
       });
 
@@ -383,11 +361,7 @@ describe('AICommandProcessor', () => {
       );
 
       if (resolveFirst) {
-        resolveFirst({
-          success: true,
-          message: 'Done',
-          toolCalls: [],
-        });
+        resolveFirst([]);
       }
 
       await new Promise((resolve) => setTimeout(resolve, 50));

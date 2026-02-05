@@ -4,7 +4,6 @@
  * Tests the visual indicator for global AI processing state.
  */
 
-import React from 'react';
 import { render, screen, cleanup, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { GlobalAIIndicator } from '../components/GlobalAIIndicator';

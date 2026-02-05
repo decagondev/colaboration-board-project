@@ -193,49 +193,44 @@ export class AICommandProcessor {
 
       await this.delay(this.processingDelay);
 
-      const aiResult = await this.aiService.processCommand(command.input);
+      const boardState = this.boardService.getObjects();
+      const toolCalls = await this.aiService.processCommand(
+        command.input,
+        boardState
+      );
 
-      if (!aiResult.success || aiResult.errors) {
-        await this.queueService.fail(
-          command.boardId,
-          command.id,
-          aiResult.errors?.join('; ') ?? 'Command processing failed'
-        );
+      if (toolCalls.length === 0) {
+        await this.queueService.complete(command.boardId, command.id, []);
 
         this.notifyCallback({
           command,
-          success: false,
+          success: true,
           toolCalls: [],
-          error: aiResult.errors?.join('; ') ?? 'Command processing failed',
         });
 
         return;
       }
 
-      const toolCalls = aiResult.toolCalls ?? [];
+      const execResult = await this.sequentialExecutor.execute(
+        toolCalls,
+        this.boardService
+      );
 
-      if (toolCalls.length > 0) {
-        const execResult = await this.sequentialExecutor.execute(
-          toolCalls,
-          this.boardService
+      if (!execResult.success) {
+        await this.queueService.fail(
+          command.boardId,
+          command.id,
+          execResult.errors.join('; ')
         );
 
-        if (!execResult.success) {
-          await this.queueService.fail(
-            command.boardId,
-            command.id,
-            execResult.errors.join('; ')
-          );
+        this.notifyCallback({
+          command,
+          success: false,
+          toolCalls,
+          error: execResult.errors.join('; '),
+        });
 
-          this.notifyCallback({
-            command,
-            success: false,
-            toolCalls,
-            error: execResult.errors.join('; '),
-          });
-
-          return;
-        }
+        return;
       }
 
       await this.queueService.complete(command.boardId, command.id, toolCalls);

@@ -165,7 +165,7 @@ describe('AICommandQueueService', () => {
   describe('complete', () => {
     it('marks a command as completed with result', async () => {
       mockUpdate.mockResolvedValue(undefined);
-      const toolCalls = [{ name: 'createStickyNote', arguments: { text: 'test' } }];
+      const toolCalls = [{ id: 'call-1', name: 'createStickyNote', arguments: { text: 'test' } }];
 
       await service.complete('board-1', 'cmd-123', toolCalls);
 

@@ -6,7 +6,7 @@
  */
 
 import type { Unsubscribe } from '@shared/types';
-import type { ToolCall, AIStatus } from './IAIService';
+import type { ToolCall } from './IAIService';
 
 /**
  * Command in the queue.
