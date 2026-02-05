@@ -6,7 +6,7 @@
  */
 
 import { useRef, useCallback, useMemo, useEffect, useState } from 'react';
-import { Stage, Layer, Rect, Ellipse, Group, Text } from 'react-konva';
+import { Stage, Layer, Rect, Ellipse, Group, Text, Line, Circle, RegularPolygon } from 'react-konva';
 import type Konva from 'konva';
 import type { Bounds, Size } from '@shared/types';
 import { TransformerComponent } from './TransformerComponent';
@@ -16,6 +16,8 @@ import type { GridConfig } from './GridOverlayComponent';
 import type { LassoState } from '../interfaces/ISelectionService';
 import { ShapeRegistry } from '../shapes';
 import type { ShapeType, ShapeRenderProps } from '../shapes';
+import type { ConnectorArrowStyle, ConnectorRouteStyle, ConnectorEndpoint } from '../objects/Connector';
+import type { Position } from '../interfaces/IBoardObject';
 
 /**
  * Viewport state for canvas positioning and scaling.
@@ -813,6 +815,197 @@ export function BoardCanvasComponent({
   );
 
   /**
+   * Calculate arrow points for connector rendering.
+   */
+  const calculateArrowPoints = useCallback(
+    (position: Position, direction: Position, size: number): number[] => {
+      const perpX = -direction.y;
+      const perpY = direction.x;
+      const baseX = position.x - direction.x * size;
+      const baseY = position.y - direction.y * size;
+      const halfWidth = size / 2;
+      return [
+        position.x,
+        position.y,
+        baseX + perpX * halfWidth,
+        baseY + perpY * halfWidth,
+        baseX - perpX * halfWidth,
+        baseY - perpY * halfWidth,
+      ];
+    },
+    []
+  );
+
+  /**
+   * Calculate direction vector from start to end.
+   */
+  const calculateDirection = useCallback(
+    (start: Position, end: Position): Position => {
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const length = Math.sqrt(dx * dx + dy * dy);
+      if (length === 0) return { x: 1, y: 0 };
+      return { x: dx / length, y: dy / length };
+    },
+    []
+  );
+
+  /**
+   * Get connector line points based on route style.
+   */
+  const getConnectorPoints = useCallback(
+    (
+      start: Position,
+      end: Position,
+      routeStyle: ConnectorRouteStyle
+    ): number[] => {
+      if (routeStyle === 'elbow') {
+        const midX = (start.x + end.x) / 2;
+        return [start.x, start.y, midX, start.y, midX, end.y, end.x, end.y];
+      }
+      return [start.x, start.y, end.x, end.y];
+    },
+    []
+  );
+
+  /**
+   * Render an arrow head for connectors.
+   */
+  const renderArrowHead = useCallback(
+    (
+      position: Position,
+      direction: Position,
+      style: ConnectorArrowStyle,
+      size: number,
+      strokeColor: string
+    ): JSX.Element | null => {
+      if (style === 'none') return null;
+
+      if (style === 'circle') {
+        return (
+          <Circle
+            x={position.x}
+            y={position.y}
+            radius={size / 2}
+            fill={strokeColor}
+            stroke={strokeColor}
+            strokeWidth={1}
+          />
+        );
+      }
+
+      if (style === 'filled-arrow') {
+        return (
+          <RegularPolygon
+            x={position.x - (direction.x * size) / 2}
+            y={position.y - (direction.y * size) / 2}
+            sides={3}
+            radius={size / 2}
+            rotation={Math.atan2(direction.y, direction.x) * (180 / Math.PI) + 90}
+            fill={strokeColor}
+            stroke={strokeColor}
+            strokeWidth={1}
+          />
+        );
+      }
+
+      const arrowPoints = calculateArrowPoints(position, direction, size);
+      return (
+        <Line
+          points={arrowPoints}
+          stroke={strokeColor}
+          strokeWidth={2}
+          lineCap="round"
+          lineJoin="round"
+        />
+      );
+    },
+    [calculateArrowPoints]
+  );
+
+  /**
+   * Render a connector object.
+   */
+  const renderConnector = useCallback(
+    (obj: RenderableObject, isSelected: boolean): JSX.Element => {
+      const startPoint = obj.data?.startPoint as ConnectorEndpoint | undefined;
+      const endPoint = obj.data?.endPoint as ConnectorEndpoint | undefined;
+      const routeStyle = (obj.data?.routeStyle as ConnectorRouteStyle) ?? 'straight';
+      const startArrow = (obj.data?.startArrow as ConnectorArrowStyle) ?? 'none';
+      const endArrow = (obj.data?.endArrow as ConnectorArrowStyle) ?? 'arrow';
+      const strokeColor = isSelected ? '#4A90D9' : ((obj.data?.strokeColor as string) ?? '#1f2937');
+      const strokeWidth = (obj.data?.strokeWidth as number) ?? 2;
+
+      if (!startPoint?.position || !endPoint?.position) {
+        return <Group key={obj.id} />;
+      }
+
+      const startPos = startPoint.position;
+      const endPos = endPoint.position;
+      const points = getConnectorPoints(startPos, endPos, routeStyle);
+      const direction = calculateDirection(startPos, endPos);
+      const reverseDirection = { x: -direction.x, y: -direction.y };
+      const arrowSize = strokeWidth * 4;
+
+      return (
+        <Group
+          key={obj.id}
+          onClick={(e) => {
+            e.cancelBubble = true;
+            objectClickedRef.current = true;
+            onObjectSelect?.(obj.id);
+          }}
+          onTap={() => onObjectSelect?.(obj.id)}
+        >
+          {/* Main connector line */}
+          <Line
+            points={points}
+            stroke={strokeColor}
+            strokeWidth={strokeWidth}
+            lineCap="round"
+            lineJoin="round"
+            hitStrokeWidth={strokeWidth + 10}
+          />
+
+          {/* Start arrow */}
+          {renderArrowHead(startPos, reverseDirection, startArrow, arrowSize, strokeColor)}
+
+          {/* End arrow */}
+          {renderArrowHead(endPos, direction, endArrow, arrowSize, strokeColor)}
+
+          {/* Endpoint handles when selected */}
+          {isSelected && (
+            <>
+              <Circle
+                x={startPos.x}
+                y={startPos.y}
+                radius={6}
+                fill="#FFFFFF"
+                stroke="#4A90D9"
+                strokeWidth={2}
+              />
+              <Circle
+                x={endPos.x}
+                y={endPos.y}
+                radius={6}
+                fill="#FFFFFF"
+                stroke="#4A90D9"
+                strokeWidth={2}
+              />
+            </>
+          )}
+        </Group>
+      );
+    },
+    [
+      onObjectSelect,
+      getConnectorPoints,
+      calculateDirection,
+      renderArrowHead,
+    ]
+  );
+
+  /**
    * Render a single object based on its type.
    */
   const renderObject = useCallback(
@@ -826,6 +1019,8 @@ export function BoardCanvasComponent({
           return renderShape(obj, isSelected);
         case 'text':
           return renderTextObject(obj, isSelected);
+        case 'connector':
+          return renderConnector(obj, isSelected);
         default:
           return (
             <Rect
@@ -857,6 +1052,7 @@ export function BoardCanvasComponent({
       renderStickyNote,
       renderShape,
       renderTextObject,
+      renderConnector,
       onObjectSelect,
       onObjectDragEnd,
     ]
