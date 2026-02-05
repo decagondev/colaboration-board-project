@@ -160,10 +160,50 @@ This project is developed as part of the Gauntlet AI Week 1 challenge, focusing 
 - Simulate multiplayer: Use multiple browsers; throttle network in DevTools for realism.
 
 ### Deployment
-- Push to GitHub.
-- In Netlify dashboard, add site from repo (manual CI/CD as per plan).
-- Set env vars in Netlify.
-- Deployed URL will support public access with auth.
+
+**Live Application:** [https://collabboard.netlify.app](https://collabboard.netlify.app) *(Update with actual URL after deployment)*
+
+#### Manual Deployment to Netlify
+
+1. **Build the Application:**
+   ```bash
+   npm run build
+   ```
+
+2. **Deploy via Netlify Dashboard:**
+   - Go to [Netlify](https://app.netlify.com)
+   - Drag and drop the `dist` folder to deploy
+   - Or connect your GitHub repository for automatic deploys
+
+3. **Configure Environment Variables in Netlify:**
+   
+   Navigate to Site Settings > Environment Variables and add:
+
+   | Variable | Description | Required |
+   |----------|-------------|----------|
+   | `VITE_FIREBASE_API_KEY` | Firebase API key | Yes |
+   | `VITE_FIREBASE_AUTH_DOMAIN` | Firebase auth domain (e.g., `project.firebaseapp.com`) | Yes |
+   | `VITE_FIREBASE_PROJECT_ID` | Firebase project ID | Yes |
+   | `VITE_FIREBASE_STORAGE_BUCKET` | Firebase storage bucket | Yes |
+   | `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender ID | Yes |
+   | `VITE_FIREBASE_APP_ID` | Firebase app ID | Yes |
+   | `VITE_FIREBASE_DATABASE_URL` | Firebase RTDB URL (e.g., `https://project.firebaseio.com`) | Yes |
+   | `VITE_OPENAI_API_KEY` | OpenAI API key for AI commands | Yes |
+
+4. **Verify Deployment:**
+   - Check that the application loads correctly
+   - Test authentication flow
+   - Verify real-time sync between multiple browsers
+   - Test AI command functionality
+
+#### Production Deployment Checklist
+
+- [ ] All tests pass (`npm test`)
+- [ ] Production build succeeds (`npm run build`)
+- [ ] Environment variables configured in Netlify
+- [ ] Firebase security rules deployed
+- [ ] CORS settings configured (if needed)
+- [ ] SSL certificate active (automatic with Netlify)
 
 ## Contributing
 Follow the git workflow: Branch from `dev`, feature branches (e.g., `feature/auth-setup`), granular commits, tests before merge. Adhere to SOLID principles and modular design. See `.cursor/rules.md` for details.
