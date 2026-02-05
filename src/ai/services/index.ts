@@ -12,3 +12,15 @@ export type {
   StepResult,
   SequentialExecutionOptions,
 } from './SequentialExecutor';
+
+export {
+  AICommandQueueService,
+  defaultAICommandQueueService,
+} from './AICommandQueueService';
+
+export { AICommandProcessor } from './AICommandProcessor';
+export type {
+  AICommandProcessorConfig,
+  ProcessingResult,
+  ProcessingCallback,
+} from './AICommandProcessor';
