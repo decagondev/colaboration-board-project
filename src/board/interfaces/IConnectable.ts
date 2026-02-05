@@ -96,24 +96,75 @@ export interface IConnectable {
 }
 
 /**
+ * Rotate a point around a center by a given angle.
+ *
+ * @param point - Point to rotate
+ * @param center - Center of rotation
+ * @param angleDegrees - Rotation angle in degrees
+ * @returns Rotated point
+ */
+function rotatePoint(
+  point: Position,
+  center: Position,
+  angleDegrees: number
+): Position {
+  if (angleDegrees === 0) return point;
+  
+  const angleRadians = (angleDegrees * Math.PI) / 180;
+  const cos = Math.cos(angleRadians);
+  const sin = Math.sin(angleRadians);
+  
+  const dx = point.x - center.x;
+  const dy = point.y - center.y;
+  
+  return {
+    x: center.x + dx * cos - dy * sin,
+    y: center.y + dx * sin + dy * cos,
+  };
+}
+
+/**
+ * Rotate a direction vector by a given angle.
+ *
+ * @param direction - Direction vector to rotate
+ * @param angleDegrees - Rotation angle in degrees
+ * @returns Rotated direction vector
+ */
+function rotateDirection(direction: Position, angleDegrees: number): Position {
+  if (angleDegrees === 0) return direction;
+  
+  const angleRadians = (angleDegrees * Math.PI) / 180;
+  const cos = Math.cos(angleRadians);
+  const sin = Math.sin(angleRadians);
+  
+  return {
+    x: direction.x * cos - direction.y * sin,
+    y: direction.x * sin + direction.y * cos,
+  };
+}
+
+/**
  * Calculate connection points for a rectangular object.
  *
  * @param x - Object X position
  * @param y - Object Y position
  * @param width - Object width
  * @param height - Object height
+ * @param rotation - Object rotation in degrees (optional, default 0)
  * @returns Array of connection points
  */
 export function calculateConnectionPoints(
   x: number,
   y: number,
   width: number,
-  height: number
+  height: number,
+  rotation: number = 0
 ): ConnectionPoint[] {
   const centerX = x + width / 2;
   const centerY = y + height / 2;
+  const center = { x: centerX, y: centerY };
 
-  return [
+  const unrotatedPoints: ConnectionPoint[] = [
     {
       anchor: 'top',
       position: { x: centerX, y },
@@ -140,6 +191,16 @@ export function calculateConnectionPoints(
       direction: { x: 0, y: 0 },
     },
   ];
+
+  if (rotation === 0) {
+    return unrotatedPoints;
+  }
+
+  return unrotatedPoints.map((point) => ({
+    anchor: point.anchor,
+    position: rotatePoint(point.position, center, rotation),
+    direction: rotateDirection(point.direction, rotation),
+  }));
 }
 
 /**

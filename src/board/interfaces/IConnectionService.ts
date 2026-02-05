@@ -195,13 +195,15 @@ export interface IConnectionService {
    * @param y - Object Y position
    * @param width - Object width
    * @param height - Object height
+   * @param rotation - Object rotation in degrees (optional, default 0)
    * @returns Array of connection points
    */
   getConnectionPoints(
     x: number,
     y: number,
     width: number,
-    height: number
+    height: number,
+    rotation?: number
   ): ConnectionPoint[];
 
   /**

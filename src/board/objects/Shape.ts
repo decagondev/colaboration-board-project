@@ -650,7 +650,8 @@ export class Shape
       bounds.x,
       bounds.y,
       bounds.width,
-      bounds.height
+      bounds.height,
+      this._transform.rotation
     );
   }
 

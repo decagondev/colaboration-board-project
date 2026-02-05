@@ -347,11 +347,13 @@ function BoardCanvasWithCursors({
       const movedObject = objects.find((o) => o.id === objectId);
       if (!movedObject) return;
       
+      const rotation = (movedObject.data?.rotation as number) ?? 0;
       const connectionPoints = calculateConnectionPoints(
         x,
         y,
         movedObject.width,
-        movedObject.height
+        movedObject.height,
+        rotation
       );
       
       objects
@@ -537,7 +539,8 @@ function BoardCanvasWithCursors({
         event.x,
         event.y,
         finalWidth,
-        finalHeight
+        finalHeight,
+        event.rotation
       );
       
       objects

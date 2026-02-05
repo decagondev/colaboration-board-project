@@ -628,7 +628,8 @@ export class StickyNote
       bounds.x,
       bounds.y,
       bounds.width,
-      bounds.height
+      bounds.height,
+      this._transform.rotation
     );
   }
 

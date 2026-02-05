@@ -154,11 +154,13 @@ export function useConnectorCreation(
 
   const getObjectConnectionPoints = useCallback(
     (object: RenderableObject): ConnectionPoint[] => {
+      const rotation = (object.data?.rotation as number) ?? 0;
       return serviceRef.current.getConnectionPoints(
         object.x,
         object.y,
         object.width,
-        object.height
+        object.height,
+        rotation
       );
     },
     []
