@@ -556,20 +556,3 @@ type ToolExecutor = (
   boardService: IBoardStateService
 ) => Promise<AICommandResult>;
 
-/**
- * Create an OpenAIService instance with environment configuration.
- *
- * @returns Configured OpenAIService instance
- * @throws AIServiceError if API key is not configured
- */
-export function createOpenAIService(): OpenAIService {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new AIServiceError(
-      'VITE_OPENAI_API_KEY environment variable is not set',
-      'MISSING_ENV_VAR'
-    );
-  }
-
-  return new OpenAIService({ apiKey });
-}
