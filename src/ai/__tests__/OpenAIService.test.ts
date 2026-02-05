@@ -159,8 +159,8 @@ describe('OpenAIService', () => {
           zIndex: 1,
           createdBy: 'user-1',
           createdAt: Date.now(),
-          lastModifiedBy: 'user-1',
-          lastModifiedAt: Date.now(),
+          modifiedBy: 'user-1',
+          modifiedAt: Date.now(),
           data: { text: 'Test note', color: '#fef08a' },
         },
       ];
@@ -473,10 +473,8 @@ describe('OpenAIService', () => {
   });
 
   describe('processCommand', () => {
-    let service: OpenAIService;
-
     beforeEach(() => {
-      service = new OpenAIService({ apiKey: 'test-api-key' });
+      jest.clearAllMocks();
     });
 
     it('should return empty array when no tool calls', async () => {

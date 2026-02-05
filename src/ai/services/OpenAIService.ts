@@ -254,11 +254,15 @@ export class OpenAIService implements IAIService {
         return [];
       }
 
-      return message.tool_calls.map((tc) => ({
-        id: tc.id,
-        name: tc.function.name,
-        arguments: JSON.parse(tc.function.arguments || '{}'),
-      }));
+      return message.tool_calls
+        .filter((tc): tc is typeof tc & { function: { name: string; arguments: string } } => 
+          'function' in tc && tc.function !== undefined
+        )
+        .map((tc) => ({
+          id: tc.id,
+          name: tc.function.name,
+          arguments: JSON.parse(tc.function.arguments || '{}'),
+        }));
     } catch (error) {
       if (error instanceof OpenAI.APIError) {
         throw new AIServiceError(
