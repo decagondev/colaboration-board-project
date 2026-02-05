@@ -9,6 +9,7 @@ export type {
   CanvasClickEvent,
   ViewportState,
   TransformEndEvent,
+  ConnectorPreview,
 } from './BoardCanvasComponent';
 
 export { ZoomControlsComponent } from './ZoomControlsComponent';

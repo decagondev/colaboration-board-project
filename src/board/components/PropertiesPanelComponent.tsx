@@ -103,7 +103,8 @@ const FONT_SIZE_PRESETS = [
 const ROUTE_STYLE_OPTIONS = [
   { value: 'straight', label: 'Straight' },
   { value: 'elbow', label: 'Elbow' },
-  { value: 'curved', label: 'Curved' },
+  { value: 'orthogonal', label: 'Orthogonal' },
+  { value: 'bezier', label: 'Bezier Curve' },
 ];
 
 /**

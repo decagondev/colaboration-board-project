@@ -91,6 +91,20 @@ export interface TransformEndEvent {
   scaleY: number;
 }
 
+/**
+ * Connector preview line configuration.
+ */
+export interface ConnectorPreview {
+  /** Whether the preview is active */
+  active: boolean;
+  /** Start position of the preview line */
+  startPosition: Position;
+  /** Current end position (mouse position) */
+  endPosition: Position;
+  /** Stroke color for the preview */
+  strokeColor?: string;
+}
+
 export interface BoardCanvasProps {
   /** Array of objects to render on the canvas */
   objects?: RenderableObject[];
@@ -120,6 +134,8 @@ export interface BoardCanvasProps {
   showGrid?: boolean;
   /** Grid configuration options */
   gridConfig?: Partial<GridConfig>;
+  /** Connector preview line (shown during connector creation) */
+  connectorPreview?: ConnectorPreview;
   /** Children to render inside the canvas (custom layers) */
   children?: React.ReactNode;
 }
@@ -188,6 +204,7 @@ export function BoardCanvasComponent({
   onLassoSelect,
   showGrid = false,
   gridConfig,
+  connectorPreview,
   children,
 }: BoardCanvasProps): JSX.Element {
   const stageRef = useRef<Konva.Stage>(null);
@@ -851,19 +868,131 @@ export function BoardCanvasComponent({
   );
 
   /**
-   * Get connector line points based on route style.
+   * Calculate intersection point of a line from shape center to target with the shape's edge.
+   * Accounts for rotation around the shape's top-left corner (how Konva rotates).
+   */
+  const getShapeEdgePoint = useCallback(
+    (
+      shapeX: number,
+      shapeY: number,
+      shapeWidth: number,
+      shapeHeight: number,
+      rotation: number,
+      targetX: number,
+      targetY: number
+    ): Position => {
+      const radians = (rotation * Math.PI) / 180;
+      const cos = Math.cos(radians);
+      const sin = Math.sin(radians);
+      
+      const localCenterX = shapeWidth / 2;
+      const localCenterY = shapeHeight / 2;
+      const worldCenterX = shapeX + localCenterX * cos - localCenterY * sin;
+      const worldCenterY = shapeY + localCenterX * sin + localCenterY * cos;
+      
+      const invRadians = -radians;
+      const invCos = Math.cos(invRadians);
+      const invSin = Math.sin(invRadians);
+      
+      const relTargetX = targetX - shapeX;
+      const relTargetY = targetY - shapeY;
+      const localTargetX = relTargetX * invCos - relTargetY * invSin;
+      const localTargetY = relTargetX * invSin + relTargetY * invCos;
+      
+      const dirX = localTargetX - localCenterX;
+      const dirY = localTargetY - localCenterY;
+      
+      if (dirX === 0 && dirY === 0) {
+        return { x: worldCenterX, y: worldCenterY };
+      }
+      
+      const halfWidth = shapeWidth / 2;
+      const halfHeight = shapeHeight / 2;
+      
+      const absDirX = Math.abs(dirX);
+      const absDirY = Math.abs(dirY);
+      
+      let localEdgeX: number;
+      let localEdgeY: number;
+      
+      if (absDirX * halfHeight > absDirY * halfWidth) {
+        const scale = halfWidth / absDirX;
+        localEdgeX = localCenterX + (dirX > 0 ? halfWidth : -halfWidth);
+        localEdgeY = localCenterY + dirY * scale;
+      } else {
+        const scale = halfHeight / absDirY;
+        localEdgeX = localCenterX + dirX * scale;
+        localEdgeY = localCenterY + (dirY > 0 ? halfHeight : -halfHeight);
+      }
+      
+      return {
+        x: shapeX + localEdgeX * cos - localEdgeY * sin,
+        y: shapeY + localEdgeX * sin + localEdgeY * cos,
+      };
+    },
+    []
+  );
+
+  /**
+   * Calculate connector line points based on route style.
+   * Supports straight, elbow, orthogonal, and bezier routing.
+   * Returns { points, bezier } where bezier indicates if the line should use bezier mode.
    */
   const getConnectorPoints = useCallback(
     (
       start: Position,
       end: Position,
       routeStyle: ConnectorRouteStyle
-    ): number[] => {
+    ): { points: number[]; bezier: boolean } => {
+      if (routeStyle === 'straight') {
+        return { points: [start.x, start.y, end.x, end.y], bezier: false };
+      }
+
       if (routeStyle === 'elbow') {
         const midX = (start.x + end.x) / 2;
-        return [start.x, start.y, midX, start.y, midX, end.y, end.x, end.y];
+        return { 
+          points: [start.x, start.y, midX, start.y, midX, end.y, end.x, end.y], 
+          bezier: false 
+        };
       }
-      return [start.x, start.y, end.x, end.y];
+
+      if (routeStyle === 'orthogonal') {
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+
+        if (Math.abs(dx) > Math.abs(dy)) {
+          const midX = start.x + dx / 2;
+          return {
+            points: [start.x, start.y, midX, start.y, midX, end.y, end.x, end.y],
+            bezier: false,
+          };
+        } else {
+          const midY = start.y + dy / 2;
+          return {
+            points: [start.x, start.y, start.x, midY, end.x, midY, end.x, end.y],
+            bezier: false,
+          };
+        }
+      }
+
+      if (routeStyle === 'bezier') {
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const curveStrength = dist * 0.3;
+        
+        const cp1x = start.x + dx * 0.25;
+        const cp1y = start.y + dy * 0.1 - curveStrength * 0.5;
+        const cp2x = start.x + dx * 0.75;
+        const cp2y = end.y - dy * 0.1 + curveStrength * 0.5;
+        
+        return {
+          points: [start.x, start.y, cp1x, cp1y, cp2x, cp2y, end.x, end.y],
+          bezier: true,
+        };
+      }
+
+      return { points: [start.x, start.y, end.x, end.y], bezier: false };
     },
     []
   );
@@ -924,33 +1053,83 @@ export function BoardCanvasComponent({
   );
 
   /**
-   * Render a connector object.
+   * Calculate connector render data (positions, directions, etc.)
    */
-  const renderConnector = useCallback(
-    (obj: RenderableObject, isSelected: boolean): JSX.Element => {
+  const getConnectorRenderData = useCallback(
+    (obj: RenderableObject) => {
       const startPoint = obj.data?.startPoint as ConnectorEndpoint | undefined;
       const endPoint = obj.data?.endPoint as ConnectorEndpoint | undefined;
       const routeStyle = (obj.data?.routeStyle as ConnectorRouteStyle) ?? 'straight';
-      const startArrow = (obj.data?.startArrow as ConnectorArrowStyle) ?? 'none';
-      const endArrow = (obj.data?.endArrow as ConnectorArrowStyle) ?? 'arrow';
+
+      if (!startPoint?.position || !endPoint?.position) {
+        return null;
+      }
+
+      const startObj = objects.find(o => o.id === startPoint.objectId);
+      const endObj = objects.find(o => o.id === endPoint.objectId);
+
+      let startRenderPos = startPoint.position;
+      let endRenderPos = endPoint.position;
+
+      if (startObj && endObj) {
+        const startRotation = (startObj.data?.rotation as number) ?? 0;
+        const endRotation = (endObj.data?.rotation as number) ?? 0;
+        
+        const startCenterX = startObj.x + startObj.width / 2;
+        const startCenterY = startObj.y + startObj.height / 2;
+        const endCenterX = endObj.x + endObj.width / 2;
+        const endCenterY = endObj.y + endObj.height / 2;
+
+        startRenderPos = getShapeEdgePoint(
+          startObj.x, startObj.y, startObj.width, startObj.height,
+          startRotation, endCenterX, endCenterY
+        );
+        endRenderPos = getShapeEdgePoint(
+          endObj.x, endObj.y, endObj.width, endObj.height,
+          endRotation, startCenterX, startCenterY
+        );
+      }
+
+      const { points, bezier } = getConnectorPoints(startRenderPos, endRenderPos, routeStyle);
+      
+      const lastSegmentStart = points.length >= 4 
+        ? { x: points[points.length - 4], y: points[points.length - 3] }
+        : startRenderPos;
+      const direction = calculateDirection(lastSegmentStart, endRenderPos);
+      
+      const firstSegmentEnd = points.length >= 4
+        ? { x: points[2], y: points[3] }
+        : endRenderPos;
+      const reverseDirection = calculateDirection(firstSegmentEnd, startRenderPos);
+
+      return {
+        startRenderPos,
+        endRenderPos,
+        points,
+        bezier,
+        direction,
+        reverseDirection,
+      };
+    },
+    [objects, getConnectorPoints, getShapeEdgePoint, calculateDirection]
+  );
+
+  /**
+   * Render connector line only (without arrows) - renders below shapes.
+   */
+  const renderConnectorLine = useCallback(
+    (obj: RenderableObject, isSelected: boolean): JSX.Element => {
+      const renderData = getConnectorRenderData(obj);
+      if (!renderData) {
+        return <Group key={`line-${obj.id}`} />;
+      }
+
       const strokeColor = isSelected ? '#4A90D9' : ((obj.data?.strokeColor as string) ?? '#1f2937');
       const strokeWidth = (obj.data?.strokeWidth as number) ?? 2;
 
-      if (!startPoint?.position || !endPoint?.position) {
-        return <Group key={obj.id} />;
-      }
-
-      const startPos = startPoint.position;
-      const endPos = endPoint.position;
-      const direction = calculateDirection(startPos, endPos);
-      const reverseDirection = { x: -direction.x, y: -direction.y };
-      const arrowSize = strokeWidth * 4;
-      
-      const points = getConnectorPoints(startPos, endPos, routeStyle);
-
       return (
         <Group
-          key={obj.id}
+          key={`line-${obj.id}`}
           onClick={(e) => {
             e.cancelBubble = true;
             objectClickedRef.current = true;
@@ -958,36 +1137,59 @@ export function BoardCanvasComponent({
           }}
           onTap={() => onObjectSelect?.(obj.id)}
         >
-          {/* Main connector line */}
           <Line
-            points={points}
+            points={renderData.points}
             stroke={strokeColor}
             strokeWidth={strokeWidth}
             lineCap="round"
             lineJoin="round"
             hitStrokeWidth={strokeWidth + 10}
+            bezier={renderData.bezier}
           />
+        </Group>
+      );
+    },
+    [getConnectorRenderData, onObjectSelect]
+  );
 
+  /**
+   * Render connector arrows and handles only - renders above shapes.
+   */
+  const renderConnectorArrows = useCallback(
+    (obj: RenderableObject, isSelected: boolean): JSX.Element => {
+      const renderData = getConnectorRenderData(obj);
+      if (!renderData) {
+        return <Group key={`arrows-${obj.id}`} />;
+      }
+
+      const startArrow = (obj.data?.startArrow as ConnectorArrowStyle) ?? 'none';
+      const endArrow = (obj.data?.endArrow as ConnectorArrowStyle) ?? 'arrow';
+      const strokeColor = isSelected ? '#4A90D9' : ((obj.data?.strokeColor as string) ?? '#1f2937');
+      const strokeWidth = (obj.data?.strokeWidth as number) ?? 2;
+      const arrowSize = strokeWidth * 4;
+
+      return (
+        <Group key={`arrows-${obj.id}`}>
           {/* Start arrow */}
-          {renderArrowHead(startPos, reverseDirection, startArrow, arrowSize, strokeColor)}
+          {renderArrowHead(renderData.startRenderPos, renderData.reverseDirection, startArrow, arrowSize, strokeColor)}
 
           {/* End arrow */}
-          {renderArrowHead(endPos, direction, endArrow, arrowSize, strokeColor)}
+          {renderArrowHead(renderData.endRenderPos, renderData.direction, endArrow, arrowSize, strokeColor)}
 
           {/* Endpoint handles when selected */}
           {isSelected && (
             <>
               <Circle
-                x={startPos.x}
-                y={startPos.y}
+                x={renderData.startRenderPos.x}
+                y={renderData.startRenderPos.y}
                 radius={6}
                 fill="#FFFFFF"
                 stroke="#4A90D9"
                 strokeWidth={2}
               />
               <Circle
-                x={endPos.x}
-                y={endPos.y}
+                x={renderData.endRenderPos.x}
+                y={renderData.endRenderPos.y}
                 radius={6}
                 fill="#FFFFFF"
                 stroke="#4A90D9"
@@ -998,12 +1200,21 @@ export function BoardCanvasComponent({
         </Group>
       );
     },
-    [
-      onObjectSelect,
-      getConnectorPoints,
-      calculateDirection,
-      renderArrowHead,
-    ]
+    [getConnectorRenderData, renderArrowHead]
+  );
+
+  /**
+   * Render a connector object (backward compatibility).
+   */
+  const renderConnector = useCallback(
+    (obj: RenderableObject, isSelected: boolean): JSX.Element => {
+      return (
+        <Group key={obj.id}>
+          {renderConnectorLine(obj, isSelected)}
+        </Group>
+      );
+    },
+    [renderConnectorLine]
   );
 
   /**
@@ -1125,7 +1336,32 @@ export function BoardCanvasComponent({
 
       {/* Object layer - main content */}
       <Layer name="objects">
-        {visibleObjects.map(renderObject)}
+        {/* 1. Render connector lines first (below shapes) */}
+        {visibleObjects.filter(obj => obj.type === 'connector').map(obj => 
+          renderConnectorLine(obj, selectedIds.has(obj.id))
+        )}
+        {/* 2. Render all shapes (above connector lines) */}
+        {visibleObjects.filter(obj => obj.type !== 'connector').map(renderObject)}
+        {/* 3. Render connector arrows and handles (above shapes) */}
+        {visibleObjects.filter(obj => obj.type === 'connector').map(obj => 
+          renderConnectorArrows(obj, selectedIds.has(obj.id))
+        )}
+        {/* Connector preview line during creation */}
+        {connectorPreview?.active && (
+          <Line
+            points={[
+              connectorPreview.startPosition.x,
+              connectorPreview.startPosition.y,
+              connectorPreview.endPosition.x,
+              connectorPreview.endPosition.y,
+            ]}
+            stroke={connectorPreview.strokeColor ?? '#3b82f6'}
+            strokeWidth={2}
+            dash={[8, 4]}
+            lineCap="round"
+            listening={false}
+          />
+        )}
         {/* Lasso selection overlay */}
         <LassoOverlayComponent lassoState={lassoState} />
         {/* Transformer for selected objects */}

@@ -206,7 +206,7 @@ function BoardCanvasWithCursors({
         checkAnchorProximity(
           { x: canvasX, y: canvasY },
           renderableObjects,
-          connectorDragState.startObjectId
+          null
         );
       }
     },
@@ -217,99 +217,137 @@ function BoardCanvasWithCursors({
       updateConnectorPosition,
       checkAnchorProximity,
       renderableObjects,
-      connectorDragState.startObjectId,
     ]
   );
 
   /**
-   * Handle mouse up to complete connector creation.
-   * Only completes if the user has dragged to a valid target (different from start).
+   * Handle mouse up - no longer completes connectors (click-based flow instead).
    */
   const handleMouseUp = useCallback(() => {
-    if (isCreatingConnector) {
-      const { startPosition, currentPosition, startObjectId, hoveredObjectId } = connectorDragState;
-      
-      const hasMovedSignificantly = 
-        Math.abs(currentPosition.x - startPosition.x) > 5 ||
-        Math.abs(currentPosition.y - startPosition.y) > 5;
-      
-      const hasValidTarget = hoveredObjectId !== null && hoveredObjectId !== startObjectId;
-      
-      if (!hasMovedSignificantly && !hasValidTarget) {
-        return;
-      }
-      
-      const result = completeConnectorCreation();
-      if (result && startObjectId && hoveredObjectId) {
-        const startObj = objects.find((o) => o.id === startObjectId);
-        const endObj = objects.find((o) => o.id === hoveredObjectId);
-        
-        if (startObj && endObj) {
-          const startCenterX = startObj.x + startObj.width / 2;
-          const startCenterY = startObj.y + startObj.height / 2;
-          const endCenterX = endObj.x + endObj.width / 2;
-          const endCenterY = endObj.y + endObj.height / 2;
-          
-          const startEdge = getEdgePoint(
-            startCenterX, startCenterY,
-            startObj.width, startObj.height,
-            endCenterX, endCenterY
-          );
-          const endEdge = getEdgePoint(
-            endCenterX, endCenterY,
-            endObj.width, endObj.height,
-            startCenterX, startCenterY
-          );
-          
-          const now = Date.now();
-          const connectorObject: SyncableObject = {
-            id: result.id,
-            type: 'connector',
-            x: Math.min(startEdge.x, endEdge.x),
-            y: Math.min(startEdge.y, endEdge.y),
-            width: Math.abs(endEdge.x - startEdge.x) || 1,
-            height: Math.abs(endEdge.y - startEdge.y) || 1,
-            createdBy: userId,
-            createdAt: now,
-            modifiedBy: userId,
-            modifiedAt: now,
-            zIndex: objects.length + 1,
-            data: {
-              startPoint: { objectId: startObjectId, anchor: 'auto', position: startEdge },
-              endPoint: { objectId: hoveredObjectId, anchor: 'auto', position: endEdge },
-              routeStyle: result.routeStyle,
-              startArrow: result.startArrow,
-              endArrow: result.endArrow,
-              strokeColor: result.strokeColor,
-              strokeWidth: result.strokeWidth,
-            },
-          };
-          createObject(connectorObject);
-        }
-      }
-      onToolReset();
-    }
-  }, [
-    isCreatingConnector,
-    connectorDragState,
-    completeConnectorCreation,
-    userId,
-    objects,
-    getEdgePoint,
-    createObject,
-    onToolReset,
-  ]);
+    // Connector creation is now click-based, not drag-based
+    // MouseUp doesn't complete connections anymore
+  }, []);
 
   /**
-   * Handle anchor click to start connector creation.
+   * Get the world position of an anchor on an object.
+   */
+  const getAnchorWorldPosition = useCallback(
+    (obj: SyncableObject, anchor: ConnectionAnchor): { x: number; y: number } => {
+      const rotation = (obj.data?.rotation as number) ?? 0;
+      const radians = (rotation * Math.PI) / 180;
+      const cos = Math.cos(radians);
+      const sin = Math.sin(radians);
+
+      let localX = obj.width / 2;
+      let localY = obj.height / 2;
+
+      switch (anchor) {
+        case 'top': localX = obj.width / 2; localY = 0; break;
+        case 'topRight': localX = obj.width; localY = 0; break;
+        case 'right': localX = obj.width; localY = obj.height / 2; break;
+        case 'bottomRight': localX = obj.width; localY = obj.height; break;
+        case 'bottom': localX = obj.width / 2; localY = obj.height; break;
+        case 'bottomLeft': localX = 0; localY = obj.height; break;
+        case 'left': localX = 0; localY = obj.height / 2; break;
+        case 'topLeft': localX = 0; localY = 0; break;
+        case 'center': localX = obj.width / 2; localY = obj.height / 2; break;
+        default: localX = obj.width / 2; localY = obj.height / 2;
+      }
+
+      return {
+        x: obj.x + localX * cos - localY * sin,
+        y: obj.y + localX * sin + localY * cos,
+      };
+    },
+    []
+  );
+
+  /**
+   * Handle anchor click to start or complete connector creation.
+   * First click starts the connection, second click completes it.
    */
   const handleAnchorClick = useCallback(
     (objectId: string, anchor: ConnectionAnchor, position: { x: number; y: number }) => {
-      if (activeTool === 'connector') {
+      if (activeTool !== 'connector') return;
+
+      if (!isCreatingConnector) {
         startConnectorCreation(position, objectId, anchor);
+      } else {
+        const { startObjectId, startAnchor } = connectorDragState;
+        
+        if (!startObjectId) {
+          cancelConnectorCreation();
+          return;
+        }
+
+        const startObj = objects.find((o) => o.id === startObjectId);
+        const endObj = objects.find((o) => o.id === objectId);
+
+        if (!startObj || !endObj) {
+          cancelConnectorCreation();
+          return;
+        }
+
+        if (startObjectId === objectId) {
+          cancelConnectorCreation();
+          return;
+        }
+
+        const result = completeConnectorCreation();
+        if (!result) {
+          cancelConnectorCreation();
+          return;
+        }
+
+        const startEdge = getAnchorWorldPosition(startObj, startAnchor ?? 'right');
+        const endEdge = getAnchorWorldPosition(endObj, anchor);
+
+        const now = Date.now();
+        const connectorObject: SyncableObject = {
+          id: result.id,
+          type: 'connector',
+          x: Math.min(startEdge.x, endEdge.x),
+          y: Math.min(startEdge.y, endEdge.y),
+          width: Math.abs(endEdge.x - startEdge.x) || 1,
+          height: Math.abs(endEdge.y - startEdge.y) || 1,
+          createdBy: userId,
+          createdAt: now,
+          modifiedBy: userId,
+          modifiedAt: now,
+          zIndex: objects.length + 1,
+          data: {
+            startPoint: { 
+              objectId: startObjectId, 
+              anchor: 'auto', 
+              position: startEdge 
+            },
+            endPoint: { 
+              objectId: objectId, 
+              anchor: 'auto', 
+              position: endEdge 
+            },
+            routeStyle: result.routeStyle,
+            startArrow: result.startArrow,
+            endArrow: result.endArrow,
+            strokeColor: result.strokeColor,
+            strokeWidth: result.strokeWidth,
+          },
+        };
+        createObject(connectorObject);
       }
     },
-    [activeTool, startConnectorCreation]
+    [
+      activeTool,
+      isCreatingConnector,
+      connectorDragState,
+      objects,
+      startConnectorCreation,
+      completeConnectorCreation,
+      cancelConnectorCreation,
+      getAnchorWorldPosition,
+      userId,
+      createObject,
+    ]
   );
 
   /**
@@ -361,57 +399,12 @@ function BoardCanvasWithCursors({
   /**
    * Handle object drag end to update position and connected connectors.
    */
-  /**
-   * Calculate the edge point on a rectangle given the angle from center to target.
-   * This finds where a line from center to target intersects the rectangle edge.
-   */
-  const getEdgePoint = useCallback(
-    (
-      centerX: number,
-      centerY: number,
-      width: number,
-      height: number,
-      targetX: number,
-      targetY: number
-    ): { x: number; y: number } => {
-      const dx = targetX - centerX;
-      const dy = targetY - centerY;
-      
-      if (dx === 0 && dy === 0) {
-        return { x: centerX, y: centerY };
-      }
-      
-      const halfWidth = width / 2;
-      const halfHeight = height / 2;
-      
-      const absDx = Math.abs(dx);
-      const absDy = Math.abs(dy);
-      
-      let edgeX: number;
-      let edgeY: number;
-      
-      if (absDx * halfHeight > absDy * halfWidth) {
-        edgeX = centerX + (dx > 0 ? halfWidth : -halfWidth);
-        edgeY = centerY + (dy * halfWidth) / absDx;
-      } else {
-        edgeX = centerX + (dx * halfHeight) / absDy;
-        edgeY = centerY + (dy > 0 ? halfHeight : -halfHeight);
-      }
-      
-      return { x: edgeX, y: edgeY };
-    },
-    []
-  );
-
   const handleObjectDragEnd = useCallback(
     (objectId: string, x: number, y: number) => {
       updateObject(objectId, { x, y });
       
       const movedObject = objects.find((o) => o.id === objectId);
       if (!movedObject) return;
-      
-      const movedCenterX = x + movedObject.width / 2;
-      const movedCenterY = y + movedObject.height / 2;
       
       objects
         .filter((obj) => obj.type === 'connector')
@@ -421,30 +414,22 @@ function BoardCanvasWithCursors({
           
           if (!startPoint?.objectId || !endPoint?.objectId) return;
           
-          const startObj = startPoint.objectId === objectId 
+          const isStartConnected = startPoint.objectId === objectId;
+          const isEndConnected = endPoint.objectId === objectId;
+          
+          if (!isStartConnected && !isEndConnected) return;
+          
+          const startObj = isStartConnected 
             ? { ...movedObject, x, y }
             : objects.find((o) => o.id === startPoint.objectId);
-          const endObj = endPoint.objectId === objectId
+          const endObj = isEndConnected
             ? { ...movedObject, x, y }
             : objects.find((o) => o.id === endPoint.objectId);
           
           if (!startObj || !endObj) return;
           
-          const startCenterX = startObj.x + startObj.width / 2;
-          const startCenterY = startObj.y + startObj.height / 2;
-          const endCenterX = endObj.x + endObj.width / 2;
-          const endCenterY = endObj.y + endObj.height / 2;
-          
-          const newStartPos = getEdgePoint(
-            startCenterX, startCenterY,
-            startObj.width, startObj.height,
-            endCenterX, endCenterY
-          );
-          const newEndPos = getEdgePoint(
-            endCenterX, endCenterY,
-            endObj.width, endObj.height,
-            startCenterX, startCenterY
-          );
+          const newStartPos = getAnchorWorldPosition(startObj, startPoint.anchor ?? 'right');
+          const newEndPos = getAnchorWorldPosition(endObj, endPoint.anchor ?? 'left');
           
           updateObject(connector.id, {
             x: Math.min(newStartPos.x, newEndPos.x),
@@ -459,7 +444,7 @@ function BoardCanvasWithCursors({
           });
         });
     },
-    [updateObject, objects, getEdgePoint]
+    [updateObject, objects, getAnchorWorldPosition]
   );
 
   /**
@@ -593,7 +578,13 @@ function BoardCanvasWithCursors({
         data: updatedData,
       });
       
-      const transformedObj = { x: event.x, y: event.y, width: finalWidth, height: finalHeight };
+      const transformedObj = { 
+        x: event.x, 
+        y: event.y, 
+        width: finalWidth, 
+        height: finalHeight,
+        data: updatedData,
+      };
       
       objects
         .filter((connObj) => connObj.type === 'connector')
@@ -603,30 +594,22 @@ function BoardCanvasWithCursors({
           
           if (!startPoint?.objectId || !endPoint?.objectId) return;
           
-          const startObj = startPoint.objectId === event.objectId 
+          const isStartConnected = startPoint.objectId === event.objectId;
+          const isEndConnected = endPoint.objectId === event.objectId;
+          
+          if (!isStartConnected && !isEndConnected) return;
+          
+          const startObj = isStartConnected 
             ? transformedObj
             : objects.find((o) => o.id === startPoint.objectId);
-          const endObj = endPoint.objectId === event.objectId
+          const endObj = isEndConnected
             ? transformedObj
             : objects.find((o) => o.id === endPoint.objectId);
           
           if (!startObj || !endObj) return;
           
-          const startCenterX = startObj.x + startObj.width / 2;
-          const startCenterY = startObj.y + startObj.height / 2;
-          const endCenterX = endObj.x + endObj.width / 2;
-          const endCenterY = endObj.y + endObj.height / 2;
-          
-          const newStartPos = getEdgePoint(
-            startCenterX, startCenterY,
-            startObj.width, startObj.height,
-            endCenterX, endCenterY
-          );
-          const newEndPos = getEdgePoint(
-            endCenterX, endCenterY,
-            endObj.width, endObj.height,
-            startCenterX, startCenterY
-          );
+          const newStartPos = getAnchorWorldPosition(startObj as SyncableObject, startPoint.anchor ?? 'right');
+          const newEndPos = getAnchorWorldPosition(endObj as SyncableObject, endPoint.anchor ?? 'left');
           
           updateObject(connector.id, {
             x: Math.min(newStartPos.x, newEndPos.x),
@@ -641,7 +624,7 @@ function BoardCanvasWithCursors({
           });
         });
     },
-    [updateObject, objects, getEdgePoint]
+    [updateObject, objects, getAnchorWorldPosition]
   );
 
   /**
@@ -779,142 +762,6 @@ function BoardCanvasWithCursors({
   );
 
   /**
-   * Handle container click for object creation.
-   * This bypasses Konva's event system which may not receive browser automation clicks.
-   */
-  const handleContainerClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      const canvas = containerRef.current?.querySelector('canvas');
-      if (!canvas) {
-        return;
-      }
-
-      if (activeTool === 'select' || activeTool === 'connector') {
-        return;
-      }
-
-      const rect = canvas.getBoundingClientRect();
-      const screenX = e.clientX - rect.left;
-      const screenY = e.clientY - rect.top;
-
-      const canvasX = (screenX - viewport.x) / viewport.scale;
-      const canvasY = (screenY - viewport.y) / viewport.scale;
-
-      const now = Date.now();
-      const baseObject = {
-        id: generateUUID(),
-        createdBy: userId,
-        createdAt: now,
-        modifiedBy: userId,
-        modifiedAt: now,
-        zIndex: objects.length + 1,
-      };
-
-      let newObject: SyncableObject | null = null;
-
-      switch (activeTool) {
-        case 'sticky-note': {
-          const color =
-            STICKY_NOTE_COLORS[
-              Math.floor(Math.random() * STICKY_NOTE_COLORS.length)
-            ];
-          newObject = {
-            ...baseObject,
-            type: 'sticky-note',
-            x: canvasX - DEFAULT_STICKY_NOTE_SIZE.width / 2,
-            y: canvasY - DEFAULT_STICKY_NOTE_SIZE.height / 2,
-            width: DEFAULT_STICKY_NOTE_SIZE.width,
-            height: DEFAULT_STICKY_NOTE_SIZE.height,
-            data: {
-              color,
-              text: '',
-              fontSize: 16,
-            },
-          };
-          break;
-        }
-        case 'rectangle': {
-          newObject = {
-            ...baseObject,
-            type: 'shape',
-            x: canvasX - DEFAULT_SHAPE_SIZE.width / 2,
-            y: canvasY - DEFAULT_SHAPE_SIZE.height / 2,
-            width: DEFAULT_SHAPE_SIZE.width,
-            height: DEFAULT_SHAPE_SIZE.height,
-            data: {
-              shapeType: 'rectangle',
-              color: '#3b82f6',
-              strokeColor: '#1d4ed8',
-              strokeWidth: 2,
-            },
-          };
-          break;
-        }
-        case 'ellipse': {
-          newObject = {
-            ...baseObject,
-            type: 'shape',
-            x: canvasX - DEFAULT_SHAPE_SIZE.width / 2,
-            y: canvasY - DEFAULT_SHAPE_SIZE.height / 2,
-            width: DEFAULT_SHAPE_SIZE.width,
-            height: DEFAULT_SHAPE_SIZE.height,
-            data: {
-              shapeType: 'ellipse',
-              color: '#10b981',
-              strokeColor: '#059669',
-              strokeWidth: 2,
-            },
-          };
-          break;
-        }
-        case 'text': {
-          newObject = {
-            ...baseObject,
-            type: 'text',
-            x: canvasX,
-            y: canvasY,
-            width: 200,
-            height: 50,
-            data: {
-              text: 'Double-click to edit',
-              fontSize: 18,
-              color: '#1f2937',
-            },
-          };
-          break;
-        }
-        default: {
-          const shapeDefinition = ShapeRegistry.get(activeTool as ShapeType);
-          if (shapeDefinition) {
-            const { width, height } = shapeDefinition.defaultSize;
-            newObject = {
-              ...baseObject,
-              type: 'shape',
-              x: canvasX - width / 2,
-              y: canvasY - height / 2,
-              width,
-              height,
-              data: {
-                shapeType: activeTool,
-                color: '#3b82f6',
-                strokeColor: '#1d4ed8',
-                strokeWidth: 2,
-              },
-            };
-          }
-          break;
-        }
-      }
-
-      if (newObject) {
-        createObject(newObject);
-        onToolReset();
-      }
-    },
-    [activeTool, viewport, userId, objects.length, createObject, onToolReset]
-  );
-
-  /**
    * Determine the highlighted object and anchor for the overlay.
    */
   const overlayHighlightedObjectId = isCreatingConnector
@@ -924,13 +771,27 @@ function BoardCanvasWithCursors({
     ? connectorDragState.nearestAnchor
     : hoveredAnchor;
 
+  /**
+   * Connector preview configuration for rendering during creation.
+   */
+  const connectorPreview = useMemo(() => {
+    if (!isCreatingConnector) {
+      return undefined;
+    }
+    return {
+      active: true,
+      startPosition: connectorDragState.startPosition,
+      endPosition: connectorDragState.currentPosition,
+      strokeColor: '#3b82f6',
+    };
+  }, [isCreatingConnector, connectorDragState.startPosition, connectorDragState.currentPosition]);
+
   return (
     <div
       ref={containerRef}
       className="board-canvas-container"
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      onClick={handleContainerClick}
       tabIndex={0}
     >
       <BoardCanvasComponent
@@ -947,6 +808,7 @@ function BoardCanvasWithCursors({
         activeTool={activeTool}
         onLassoSelect={handleLassoSelect}
         showGrid={showGrid}
+        connectorPreview={connectorPreview}
       >
         <CursorOverlayComponent />
         <ConnectionAnchorOverlay

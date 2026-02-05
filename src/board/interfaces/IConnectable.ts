@@ -8,12 +8,18 @@ import type { Position } from './IBoardObject';
 
 /**
  * Connection point anchor positions.
+ * Includes edges (top, right, bottom, left), corners (topLeft, topRight, bottomRight, bottomLeft),
+ * center, and auto (dynamically calculated).
  */
 export type ConnectionAnchor =
   | 'top'
+  | 'topRight'
   | 'right'
+  | 'bottomRight'
   | 'bottom'
+  | 'bottomLeft'
   | 'left'
+  | 'topLeft'
   | 'center'
   | 'auto';
 

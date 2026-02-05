@@ -23,7 +23,7 @@ import { generateUUID } from '@shared/utils/uuid';
 /**
  * Connector routing style.
  */
-export type ConnectorRouteStyle = 'straight' | 'elbow' | 'curved';
+export type ConnectorRouteStyle = 'straight' | 'elbow' | 'orthogonal' | 'bezier';
 
 /**
  * Connector arrow style.
