@@ -643,6 +643,7 @@ function BoardPropertiesPanel() {
 
   /**
    * Handle property change from the properties panel.
+   * For text objects, snaps the container when font size or text content changes.
    */
   const handlePropertyChange = useCallback(
     (event: PropertyChangeEvent) => {
@@ -652,12 +653,36 @@ function BoardPropertiesPanel() {
 
       if (property.startsWith('data.')) {
         const dataKey = property.slice(5);
-        updateObject(objectId, {
-          data: {
-            ...obj.data,
-            [dataKey]: value,
-          },
-        });
+        const newData = {
+          ...obj.data,
+          [dataKey]: value,
+        };
+
+        if (obj.type === 'text' && (dataKey === 'fontSize' || dataKey === 'text')) {
+          const textContent = dataKey === 'text' 
+            ? (value as string) 
+            : (obj.data?.text as string) || 'Text';
+          const fontSize = dataKey === 'fontSize' 
+            ? (value as number) 
+            : (obj.data?.fontSize as number) || 16;
+
+          const measured = measureText({
+            text: textContent,
+            fontSize,
+            fontFamily: 'system-ui, -apple-system, sans-serif',
+            padding: 16,
+          });
+
+          updateObject(objectId, {
+            width: Math.max(measured.width, 50),
+            height: Math.max(measured.height, 30),
+            data: newData,
+          });
+        } else {
+          updateObject(objectId, {
+            data: newData,
+          });
+        }
       } else {
         updateObject(objectId, {
           [property]: value,

@@ -305,6 +305,27 @@ export function BoardCanvasComponent({
   }, [selectedIds]);
 
   /**
+   * Check if any selected object is a text type.
+   * Text objects should only have rotation handles, not resize handles.
+   */
+  const hasTextSelection = useMemo(() => {
+    return objects.some(
+      (obj) => selectedIds.has(obj.id) && obj.type === 'text'
+    );
+  }, [objects, selectedIds]);
+
+  /**
+   * Determine enabled anchors based on selection.
+   * Text objects only get rotation (no resize anchors).
+   */
+  const transformerAnchors = useMemo(() => {
+    if (hasTextSelection) {
+      return [];
+    }
+    return undefined;
+  }, [hasTextSelection]);
+
+  /**
    * Handle transform end event from the transformer.
    * Passes scale factors for font size scaling in text objects.
    */
@@ -871,6 +892,7 @@ export function BoardCanvasComponent({
             nodes={selectedNodes}
             rotateEnabled={true}
             keepRatio={false}
+            enabledAnchors={transformerAnchors}
             onTransformEnd={handleTransformEnd}
           />
         )}

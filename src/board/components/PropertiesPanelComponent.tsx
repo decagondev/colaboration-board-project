@@ -65,12 +65,13 @@ interface PropertySection {
 interface PropertyConfig {
   key: string;
   label: string;
-  type: 'number' | 'color' | 'text' | 'select';
+  type: 'number' | 'color' | 'text' | 'select' | 'textarea' | 'fontSizePreset';
   dataKey?: string;
   min?: number;
   max?: number;
   step?: number;
   options?: { value: string; label: string }[];
+  placeholder?: string;
 }
 
 /**
@@ -83,6 +84,17 @@ const COLOR_PRESETS = [
   '#fce7f3', '#fbcfe8', '#f9a8d4',
   '#f3f4f6', '#e5e7eb', '#d1d5db',
   '#1f2937', '#374151', '#4b5563',
+];
+
+/**
+ * Font size presets with labels and values.
+ */
+const FONT_SIZE_PRESETS = [
+  { label: 'SM', value: 12 },
+  { label: 'MD', value: 16 },
+  { label: 'LG', value: 24 },
+  { label: 'XL', value: 32 },
+  { label: '2XL', value: 48 },
 ];
 
 /**
@@ -118,6 +130,30 @@ function getPropertySections(objectType: string): PropertySection[] {
     ],
   };
 
+  const textContentSection: PropertySection = {
+    title: 'Content',
+    properties: [
+      { key: 'textContent', label: 'Text', type: 'textarea', dataKey: 'text', placeholder: 'Enter text...' },
+    ],
+  };
+
+  const textStyleSection: PropertySection = {
+    title: 'Style',
+    properties: [
+      { key: 'fontSize', label: 'Font Size', type: 'fontSizePreset', dataKey: 'fontSize' },
+      { key: 'textColor', label: 'Text Color', type: 'color', dataKey: 'color' },
+    ],
+  };
+
+  const textTransformSection: PropertySection = {
+    title: 'Transform',
+    properties: [
+      { key: 'x', label: 'X', type: 'number', step: 1 },
+      { key: 'y', label: 'Y', type: 'number', step: 1 },
+      { key: 'rotation', label: 'Rotation', type: 'number', dataKey: 'rotation', min: -180, max: 180, step: 1 },
+    ],
+  };
+
   const stickyNoteColorSection: PropertySection = {
     title: 'Colors',
     properties: [
@@ -138,7 +174,7 @@ function getPropertySections(objectType: string): PropertySection[] {
     case 'sticky-note':
       return [transformSection, stickyNoteColorSection, textSection];
     case 'text':
-      return [transformSection, textSection];
+      return [textContentSection, textStyleSection, textTransformSection];
     case 'shape':
       return [transformSection, shapeColorSection];
     default:
@@ -279,6 +315,13 @@ function PropertyEditor({ config, value, onChange }: PropertyEditorProps): JSX.E
     [onChange]
   );
 
+  const handleTextareaChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      onChange(e.target.value);
+    },
+    [onChange]
+  );
+
   const handleColorChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       onChange(e.target.value);
@@ -289,6 +332,13 @@ function PropertyEditor({ config, value, onChange }: PropertyEditorProps): JSX.E
   const handleColorPresetClick = useCallback(
     (color: string) => {
       onChange(color);
+    },
+    [onChange]
+  );
+
+  const handleFontSizePresetClick = useCallback(
+    (size: number) => {
+      onChange(size);
     },
     [onChange]
   );
@@ -357,6 +407,57 @@ function PropertyEditor({ config, value, onChange }: PropertyEditorProps): JSX.E
             onChange={handleTextChange}
             style={textInputStyles}
           />
+        </div>
+      );
+
+    case 'textarea':
+      return (
+        <div style={propertyRowStyles}>
+          <label style={labelStyles}>{config.label}</label>
+          <textarea
+            value={(value as string) || ''}
+            onChange={handleTextareaChange}
+            placeholder={config.placeholder}
+            style={textareaInputStyles}
+            rows={3}
+          />
+        </div>
+      );
+
+    case 'fontSizePreset':
+      return (
+        <div style={propertyRowStyles}>
+          <label style={labelStyles}>{config.label}</label>
+          <div style={fontSizePresetContainerStyles}>
+            {FONT_SIZE_PRESETS.map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                title={`${preset.label} (${preset.value}px)`}
+                onClick={() => handleFontSizePresetClick(preset.value)}
+                style={{
+                  ...fontSizePresetButtonStyles,
+                  backgroundColor: value === preset.value ? '#3b82f6' : '#ffffff',
+                  color: value === preset.value ? '#ffffff' : '#374151',
+                  borderColor: value === preset.value ? '#3b82f6' : '#e5e7eb',
+                }}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+          <div style={fontSizeCustomInputStyles}>
+            <input
+              type="number"
+              value={value as number}
+              min={8}
+              max={200}
+              step={1}
+              onChange={handleNumberChange}
+              style={numberInputStyles}
+            />
+            <span style={fontSizeUnitStyles}>px</span>
+          </div>
         </div>
       );
 
@@ -598,6 +699,62 @@ const colorPresetStyles: React.CSSProperties = {
   borderRadius: '4px',
   cursor: 'pointer',
   transition: 'transform 0.1s ease',
+};
+
+/**
+ * Textarea input styles.
+ */
+const textareaInputStyles: React.CSSProperties = {
+  width: '100%',
+  padding: '8px',
+  fontSize: '13px',
+  border: '1px solid #e5e7eb',
+  borderRadius: '6px',
+  outline: 'none',
+  resize: 'vertical',
+  minHeight: '60px',
+  fontFamily: 'inherit',
+  lineHeight: 1.4,
+};
+
+/**
+ * Font size preset container styles.
+ */
+const fontSizePresetContainerStyles: React.CSSProperties = {
+  display: 'flex',
+  gap: '4px',
+  marginBottom: '8px',
+};
+
+/**
+ * Font size preset button styles.
+ */
+const fontSizePresetButtonStyles: React.CSSProperties = {
+  flex: 1,
+  padding: '6px 4px',
+  fontSize: '11px',
+  fontWeight: 600,
+  border: '1px solid #e5e7eb',
+  borderRadius: '6px',
+  cursor: 'pointer',
+  transition: 'all 0.15s ease',
+};
+
+/**
+ * Font size custom input container styles.
+ */
+const fontSizeCustomInputStyles: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '4px',
+};
+
+/**
+ * Font size unit label styles.
+ */
+const fontSizeUnitStyles: React.CSSProperties = {
+  fontSize: '12px',
+  color: '#6b7280',
 };
 
 export default PropertiesPanelComponent;
