@@ -1,27 +1,24 @@
 /**
  * ConnectionAnchorOverlay Component
  *
- * Displays connection anchor points on connectable objects.
- * Shows visual indicators for where connectors can attach.
+ * Displays connection indicators on connectable objects.
+ * Shows a center point that can be clicked to start a connector.
+ * The actual edge connection point is calculated dynamically.
  *
  * @module board/components/ConnectionAnchorOverlay
  */
 
-import { Circle, Group, Layer } from 'react-konva';
+import { Circle, Rect, Group, Layer } from 'react-konva';
 import type Konva from 'konva';
 import { useCallback, useMemo } from 'react';
-import type {
-  ConnectionAnchor,
-  ConnectionPoint,
-} from '../interfaces/IConnectable';
-import { calculateConnectionPoints } from '../interfaces/IConnectable';
+import type { ConnectionAnchor } from '../interfaces/IConnectable';
 import type { RenderableObject } from './BoardCanvasComponent';
 
 /**
- * Visual configuration for anchor point display.
+ * Visual configuration for connection indicator display.
  */
-interface AnchorStyleConfig {
-  /** Radius of the anchor circle */
+interface IndicatorStyleConfig {
+  /** Radius of the center indicator */
   radius: number;
   /** Fill color for normal state */
   fill: string;
@@ -33,62 +30,66 @@ interface AnchorStyleConfig {
   highlightFill: string;
   /** Stroke color when highlighted/hovered */
   highlightStroke: string;
+  /** Outline stroke color */
+  outlineStroke: string;
+  /** Outline stroke width */
+  outlineStrokeWidth: number;
 }
 
 /**
- * Default anchor visual configuration.
+ * Default indicator visual configuration.
  */
-const DEFAULT_ANCHOR_STYLE: AnchorStyleConfig = {
-  radius: 6,
+const DEFAULT_INDICATOR_STYLE: IndicatorStyleConfig = {
+  radius: 8,
   fill: '#FFFFFF',
   stroke: '#3b82f6',
   strokeWidth: 2,
   highlightFill: '#3b82f6',
   highlightStroke: '#1d4ed8',
+  outlineStroke: '#3b82f6',
+  outlineStrokeWidth: 2,
 };
 
 /**
  * Props for the ConnectionAnchorOverlay component.
  */
 export interface ConnectionAnchorOverlayProps {
-  /** Objects to show anchors for */
+  /** Objects to show indicators for */
   objects: RenderableObject[];
   /** Currently highlighted object ID (e.g., on hover) */
   highlightedObjectId?: string | null;
-  /** Currently highlighted anchor on the highlighted object */
+  /** Currently highlighted anchor (kept for API compatibility) */
   highlightedAnchor?: ConnectionAnchor | null;
-  /** Whether anchors should be visible */
+  /** Whether indicators should be visible */
   visible?: boolean;
-  /** Custom anchor style configuration */
-  anchorStyle?: Partial<AnchorStyleConfig>;
-  /** Callback when an anchor is clicked */
+  /** Custom indicator style configuration */
+  anchorStyle?: Partial<IndicatorStyleConfig>;
+  /** Callback when an object's indicator is clicked */
   onAnchorClick?: (
     objectId: string,
     anchor: ConnectionAnchor,
     position: { x: number; y: number }
   ) => void;
-  /** Callback when mouse enters an anchor */
+  /** Callback when mouse enters an object's indicator */
   onAnchorMouseEnter?: (
     objectId: string,
     anchor: ConnectionAnchor,
     position: { x: number; y: number }
   ) => void;
-  /** Callback when mouse leaves an anchor */
+  /** Callback when mouse leaves an object's indicator */
   onAnchorMouseLeave?: (objectId: string, anchor: ConnectionAnchor) => void;
 }
 
 /**
- * Single anchor point visual representation.
+ * Props for single object connection indicator.
  */
-interface AnchorPointProps {
-  /** Object ID this anchor belongs to */
-  objectId: string;
-  /** Connection point data */
-  connectionPoint: ConnectionPoint;
-  /** Whether this anchor is highlighted */
+interface ObjectIndicatorProps {
+  /** The object to show indicator for */
+  object: RenderableObject;
+  /** Whether this object is highlighted */
   isHighlighted: boolean;
   /** Style configuration */
-  style: AnchorStyleConfig;
+  style: IndicatorStyleConfig;
   /** Click handler */
   onClick?: (
     objectId: string,
@@ -106,171 +107,101 @@ interface AnchorPointProps {
 }
 
 /**
- * Renders a single anchor point circle.
- *
- * @param props - Anchor point properties
- * @returns Konva Circle element for the anchor
+ * Renders a connection indicator for a single object.
+ * Shows a center point and optional outline when hovered.
  */
-function AnchorPoint({
-  objectId,
-  connectionPoint,
+function ObjectIndicator({
+  object,
   isHighlighted,
   style,
   onClick,
   onMouseEnter,
   onMouseLeave,
-}: AnchorPointProps): JSX.Element {
-  const { anchor, position } = connectionPoint;
+}: ObjectIndicatorProps): JSX.Element {
+  const centerX = object.x + object.width / 2;
+  const centerY = object.y + object.height / 2;
 
   const handleClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
       e.cancelBubble = true;
-      onClick?.(objectId, anchor, position);
+      onClick?.(object.id, 'center', { x: centerX, y: centerY });
     },
-    [onClick, objectId, anchor, position]
+    [onClick, object.id, centerX, centerY]
   );
-
-  const handleMouseEnter = useCallback(() => {
-    onMouseEnter?.(objectId, anchor, position);
-  }, [onMouseEnter, objectId, anchor, position]);
-
-  const handleMouseLeave = useCallback(() => {
-    onMouseLeave?.(objectId, anchor);
-  }, [onMouseLeave, objectId, anchor]);
 
   const handleTap = useCallback(
     (e: Konva.KonvaEventObject<TouchEvent>) => {
       e.cancelBubble = true;
-      onClick?.(objectId, anchor, position);
+      onClick?.(object.id, 'center', { x: centerX, y: centerY });
     },
-    [onClick, objectId, anchor, position]
+    [onClick, object.id, centerX, centerY]
   );
 
-  return (
-    <Circle
-      x={position.x}
-      y={position.y}
-      radius={isHighlighted ? style.radius * 1.3 : style.radius}
-      fill={isHighlighted ? style.highlightFill : style.fill}
-      stroke={isHighlighted ? style.highlightStroke : style.stroke}
-      strokeWidth={style.strokeWidth}
-      onClick={handleClick}
-      onTap={handleTap}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      perfectDrawEnabled={false}
-      shadowForStrokeEnabled={false}
-    />
-  );
-}
+  const handleMouseEnter = useCallback(() => {
+    onMouseEnter?.(object.id, 'center', { x: centerX, y: centerY });
+  }, [onMouseEnter, object.id, centerX, centerY]);
 
-/**
- * Renders anchor points for a single object.
- */
-interface ObjectAnchorsProps {
-  /** The object to show anchors for */
-  object: RenderableObject;
-  /** Whether this object is highlighted */
-  isHighlighted: boolean;
-  /** Specific anchor to highlight on this object */
-  highlightedAnchor?: ConnectionAnchor | null;
-  /** Style configuration */
-  style: AnchorStyleConfig;
-  /** Anchor click handler */
-  onAnchorClick?: (
-    objectId: string,
-    anchor: ConnectionAnchor,
-    position: { x: number; y: number }
-  ) => void;
-  /** Anchor mouse enter handler */
-  onAnchorMouseEnter?: (
-    objectId: string,
-    anchor: ConnectionAnchor,
-    position: { x: number; y: number }
-  ) => void;
-  /** Anchor mouse leave handler */
-  onAnchorMouseLeave?: (objectId: string, anchor: ConnectionAnchor) => void;
-}
-
-/**
- * Renders all anchor points for a single connectable object.
- *
- * @param props - Object anchors properties
- * @returns Group containing all anchor points
- */
-function ObjectAnchors({
-  object,
-  isHighlighted,
-  highlightedAnchor,
-  style,
-  onAnchorClick,
-  onAnchorMouseEnter,
-  onAnchorMouseLeave,
-}: ObjectAnchorsProps): JSX.Element {
-  const rotation = (object.data?.rotation as number) ?? 0;
-  const connectionPoints = useMemo(() => {
-    return calculateConnectionPoints(
-      object.x,
-      object.y,
-      object.width,
-      object.height,
-      rotation
-    ).filter((cp) => cp.anchor !== 'center');
-  }, [object.x, object.y, object.width, object.height, rotation]);
+  const handleMouseLeave = useCallback(() => {
+    onMouseLeave?.(object.id, 'center');
+  }, [onMouseLeave, object.id]);
 
   return (
-    <Group key={`anchors-${object.id}`}>
-      {connectionPoints.map((cp) => (
-        <AnchorPoint
-          key={`${object.id}-${cp.anchor}`}
-          objectId={object.id}
-          connectionPoint={cp}
-          isHighlighted={isHighlighted && highlightedAnchor === cp.anchor}
-          style={style}
-          onClick={onAnchorClick}
-          onMouseEnter={onAnchorMouseEnter}
-          onMouseLeave={onAnchorMouseLeave}
+    <Group key={`indicator-${object.id}`}>
+      {/* Highlight outline when hovered */}
+      {isHighlighted && (
+        <Rect
+          x={object.x - 2}
+          y={object.y - 2}
+          width={object.width + 4}
+          height={object.height + 4}
+          stroke={style.outlineStroke}
+          strokeWidth={style.outlineStrokeWidth}
+          cornerRadius={4}
+          dash={[5, 5]}
+          listening={false}
         />
-      ))}
+      )}
+      {/* Center connection indicator */}
+      <Circle
+        x={centerX}
+        y={centerY}
+        radius={isHighlighted ? style.radius * 1.2 : style.radius}
+        fill={isHighlighted ? style.highlightFill : style.fill}
+        stroke={isHighlighted ? style.highlightStroke : style.stroke}
+        strokeWidth={style.strokeWidth}
+        onClick={handleClick}
+        onTap={handleTap}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        perfectDrawEnabled={false}
+        shadowForStrokeEnabled={false}
+      />
     </Group>
   );
 }
 
 /**
- * ConnectionAnchorOverlay displays visual connection anchor points on objects.
+ * ConnectionAnchorOverlay displays connection indicators on connectable objects.
  *
- * This component is responsible for:
- * - Showing anchor points (top, right, bottom, left) on connectable objects
- * - Highlighting anchors on hover or during connector creation
- * - Providing click/hover callbacks for connector attachment logic
+ * This component shows a center indicator on each connectable shape.
+ * When clicked, it starts connector creation. The actual edge connection
+ * point is calculated dynamically based on the direction to the other object.
  *
  * @param props - Component properties
- * @returns Konva Layer containing all anchor overlays, or null if not visible
- *
- * @example
- * ```tsx
- * <ConnectionAnchorOverlay
- *   objects={boardObjects}
- *   visible={isConnectorToolActive}
- *   highlightedObjectId={hoveredObjectId}
- *   highlightedAnchor={nearestAnchor}
- *   onAnchorClick={handleAnchorClick}
- * />
- * ```
+ * @returns Konva Layer containing all indicators, or null if not visible
  */
 export function ConnectionAnchorOverlay({
   objects,
   highlightedObjectId,
-  highlightedAnchor,
   visible = true,
   anchorStyle,
   onAnchorClick,
   onAnchorMouseEnter,
   onAnchorMouseLeave,
 }: ConnectionAnchorOverlayProps): JSX.Element | null {
-  const mergedStyle = useMemo<AnchorStyleConfig>(
+  const mergedStyle = useMemo<IndicatorStyleConfig>(
     () => ({
-      ...DEFAULT_ANCHOR_STYLE,
+      ...DEFAULT_INDICATOR_STYLE,
       ...anchorStyle,
     }),
     [anchorStyle]
@@ -292,17 +223,14 @@ export function ConnectionAnchorOverlay({
   return (
     <Layer listening={true}>
       {connectableObjects.map((obj) => (
-        <ObjectAnchors
-          key={`obj-anchors-${obj.id}`}
+        <ObjectIndicator
+          key={`indicator-${obj.id}`}
           object={obj}
           isHighlighted={highlightedObjectId === obj.id}
-          highlightedAnchor={
-            highlightedObjectId === obj.id ? highlightedAnchor : null
-          }
           style={mergedStyle}
-          onAnchorClick={onAnchorClick}
-          onAnchorMouseEnter={onAnchorMouseEnter}
-          onAnchorMouseLeave={onAnchorMouseLeave}
+          onClick={onAnchorClick}
+          onMouseEnter={onAnchorMouseEnter}
+          onMouseLeave={onAnchorMouseLeave}
         />
       ))}
     </Layer>

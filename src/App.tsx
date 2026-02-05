@@ -240,31 +240,52 @@ function BoardCanvasWithCursors({
       }
       
       const result = completeConnectorCreation();
-      if (result) {
-        const now = Date.now();
-        const connectorObject: SyncableObject = {
-          id: result.id,
-          type: 'connector',
-          x: Math.min(result.startPoint.position.x, result.endPoint.position.x),
-          y: Math.min(result.startPoint.position.y, result.endPoint.position.y),
-          width: Math.abs(result.endPoint.position.x - result.startPoint.position.x) || 1,
-          height: Math.abs(result.endPoint.position.y - result.startPoint.position.y) || 1,
-          createdBy: userId,
-          createdAt: now,
-          modifiedBy: userId,
-          modifiedAt: now,
-          zIndex: objects.length + 1,
-          data: {
-            startPoint: result.startPoint,
-            endPoint: result.endPoint,
-            routeStyle: result.routeStyle,
-            startArrow: result.startArrow,
-            endArrow: result.endArrow,
-            strokeColor: result.strokeColor,
-            strokeWidth: result.strokeWidth,
-          },
-        };
-        createObject(connectorObject);
+      if (result && startObjectId && hoveredObjectId) {
+        const startObj = objects.find((o) => o.id === startObjectId);
+        const endObj = objects.find((o) => o.id === hoveredObjectId);
+        
+        if (startObj && endObj) {
+          const startCenterX = startObj.x + startObj.width / 2;
+          const startCenterY = startObj.y + startObj.height / 2;
+          const endCenterX = endObj.x + endObj.width / 2;
+          const endCenterY = endObj.y + endObj.height / 2;
+          
+          const startEdge = getEdgePoint(
+            startCenterX, startCenterY,
+            startObj.width, startObj.height,
+            endCenterX, endCenterY
+          );
+          const endEdge = getEdgePoint(
+            endCenterX, endCenterY,
+            endObj.width, endObj.height,
+            startCenterX, startCenterY
+          );
+          
+          const now = Date.now();
+          const connectorObject: SyncableObject = {
+            id: result.id,
+            type: 'connector',
+            x: Math.min(startEdge.x, endEdge.x),
+            y: Math.min(startEdge.y, endEdge.y),
+            width: Math.abs(endEdge.x - startEdge.x) || 1,
+            height: Math.abs(endEdge.y - startEdge.y) || 1,
+            createdBy: userId,
+            createdAt: now,
+            modifiedBy: userId,
+            modifiedAt: now,
+            zIndex: objects.length + 1,
+            data: {
+              startPoint: { objectId: startObjectId, anchor: 'auto', position: startEdge },
+              endPoint: { objectId: hoveredObjectId, anchor: 'auto', position: endEdge },
+              routeStyle: result.routeStyle,
+              startArrow: result.startArrow,
+              endArrow: result.endArrow,
+              strokeColor: result.strokeColor,
+              strokeWidth: result.strokeWidth,
+            },
+          };
+          createObject(connectorObject);
+        }
       }
       onToolReset();
     }
@@ -273,7 +294,8 @@ function BoardCanvasWithCursors({
     connectorDragState,
     completeConnectorCreation,
     userId,
-    objects.length,
+    objects,
+    getEdgePoint,
     createObject,
     onToolReset,
   ]);
