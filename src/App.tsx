@@ -29,6 +29,7 @@ import type {
   PropertyPanelObject,
 } from '@board/components';
 import type { ConnectionAnchor } from '@board/interfaces';
+import { calculateConnectionPoints } from '@board/interfaces';
 import type { SyncableObject } from '@sync/interfaces/ISyncService';
 import { generateUUID, measureText } from '@shared/utils';
 import { ShapeRegistry } from '@board/shapes';
@@ -337,13 +338,68 @@ function BoardCanvasWithCursors({
   }, [clearSelection]);
 
   /**
-   * Handle object drag end to update position.
+   * Handle object drag end to update position and connected connectors.
    */
   const handleObjectDragEnd = useCallback(
     (objectId: string, x: number, y: number) => {
       updateObject(objectId, { x, y });
+      
+      const movedObject = objects.find((o) => o.id === objectId);
+      if (!movedObject) return;
+      
+      const connectionPoints = calculateConnectionPoints(
+        x,
+        y,
+        movedObject.width,
+        movedObject.height
+      );
+      
+      objects
+        .filter((obj) => obj.type === 'connector')
+        .forEach((connector) => {
+          const startPoint = connector.data?.startPoint as { objectId?: string; anchor?: ConnectionAnchor; position?: { x: number; y: number } } | undefined;
+          const endPoint = connector.data?.endPoint as { objectId?: string; anchor?: ConnectionAnchor; position?: { x: number; y: number } } | undefined;
+          
+          const updates: Record<string, unknown> = {};
+          
+          if (startPoint?.objectId === objectId && startPoint.anchor) {
+            const anchorPoint = connectionPoints.find((cp) => cp.anchor === startPoint.anchor);
+            if (anchorPoint) {
+              updates.startPoint = {
+                ...startPoint,
+                position: anchorPoint.position,
+              };
+            }
+          }
+          
+          if (endPoint?.objectId === objectId && endPoint.anchor) {
+            const anchorPoint = connectionPoints.find((cp) => cp.anchor === endPoint.anchor);
+            if (anchorPoint) {
+              updates.endPoint = {
+                ...endPoint,
+                position: anchorPoint.position,
+              };
+            }
+          }
+          
+          if (Object.keys(updates).length > 0) {
+            const newStartPos = (updates.startPoint as { position: { x: number; y: number } })?.position ?? startPoint?.position ?? { x: 0, y: 0 };
+            const newEndPos = (updates.endPoint as { position: { x: number; y: number } })?.position ?? endPoint?.position ?? { x: 0, y: 0 };
+            
+            updateObject(connector.id, {
+              x: Math.min(newStartPos.x, newEndPos.x),
+              y: Math.min(newStartPos.y, newEndPos.y),
+              width: Math.abs(newEndPos.x - newStartPos.x) || 1,
+              height: Math.abs(newEndPos.y - newStartPos.y) || 1,
+              data: {
+                ...connector.data,
+                ...updates,
+              },
+            });
+          }
+        });
     },
-    [updateObject]
+    [updateObject, objects]
   );
 
   /**
@@ -432,6 +488,7 @@ function BoardCanvasWithCursors({
    * Handle object transform end (resize/rotate).
    * For text and sticky-note objects, scales the font size proportionally.
    * For text objects, also snaps the bounding box to fit the scaled text.
+   * Also updates any connected connectors.
    */
   const handleObjectTransformEnd = useCallback(
     (event: TransformEndEvent) => {
@@ -475,6 +532,58 @@ function BoardCanvasWithCursors({
         height: finalHeight,
         data: updatedData,
       });
+      
+      const connectionPoints = calculateConnectionPoints(
+        event.x,
+        event.y,
+        finalWidth,
+        finalHeight
+      );
+      
+      objects
+        .filter((connObj) => connObj.type === 'connector')
+        .forEach((connector) => {
+          const startPoint = connector.data?.startPoint as { objectId?: string; anchor?: ConnectionAnchor; position?: { x: number; y: number } } | undefined;
+          const endPoint = connector.data?.endPoint as { objectId?: string; anchor?: ConnectionAnchor; position?: { x: number; y: number } } | undefined;
+          
+          const updates: Record<string, unknown> = {};
+          
+          if (startPoint?.objectId === event.objectId && startPoint.anchor) {
+            const anchorPoint = connectionPoints.find((cp) => cp.anchor === startPoint.anchor);
+            if (anchorPoint) {
+              updates.startPoint = {
+                ...startPoint,
+                position: anchorPoint.position,
+              };
+            }
+          }
+          
+          if (endPoint?.objectId === event.objectId && endPoint.anchor) {
+            const anchorPoint = connectionPoints.find((cp) => cp.anchor === endPoint.anchor);
+            if (anchorPoint) {
+              updates.endPoint = {
+                ...endPoint,
+                position: anchorPoint.position,
+              };
+            }
+          }
+          
+          if (Object.keys(updates).length > 0) {
+            const newStartPos = (updates.startPoint as { position: { x: number; y: number } })?.position ?? startPoint?.position ?? { x: 0, y: 0 };
+            const newEndPos = (updates.endPoint as { position: { x: number; y: number } })?.position ?? endPoint?.position ?? { x: 0, y: 0 };
+            
+            updateObject(connector.id, {
+              x: Math.min(newStartPos.x, newEndPos.x),
+              y: Math.min(newStartPos.y, newEndPos.y),
+              width: Math.abs(newEndPos.x - newStartPos.x) || 1,
+              height: Math.abs(newEndPos.y - newStartPos.y) || 1,
+              data: {
+                ...connector.data,
+                ...updates,
+              },
+            });
+          }
+        });
     },
     [updateObject, objects]
   );
