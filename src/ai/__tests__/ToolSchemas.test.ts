@@ -203,43 +203,55 @@ describe('toOpenAITool', () => {
     const tool = toOpenAITool(createStickyNoteSchema);
 
     expect(tool.type).toBe('function');
-    expect(tool.function.name).toBe('createStickyNote');
-    expect(tool.function.description).toBeTruthy();
+    if (tool.type === 'function') {
+      expect(tool.function.name).toBe('createStickyNote');
+      expect(tool.function.description).toBeTruthy();
+    }
   });
 
   it('should include parameters in OpenAI format', () => {
     const tool = toOpenAITool(createStickyNoteSchema);
 
-    expect(tool.function.parameters).toBeDefined();
-    expect(tool.function.parameters.type).toBe('object');
-    expect(tool.function.parameters.properties).toBeDefined();
+    if (tool.type === 'function') {
+      const params = tool.function.parameters as Record<string, unknown>;
+      expect(params).toBeDefined();
+      expect(params.type).toBe('object');
+      expect(params.properties).toBeDefined();
+    }
   });
 
   it('should mark required parameters', () => {
     const tool = toOpenAITool(createStickyNoteSchema);
 
-    expect(tool.function.parameters.required).toContain('text');
+    if (tool.type === 'function') {
+      const params = tool.function.parameters as { required?: string[] };
+      expect(params.required).toContain('text');
+    }
   });
 
   it('should include enum values', () => {
     const tool = toOpenAITool(createShapeSchema);
-    const properties = tool.function.parameters.properties as Record<
-      string,
-      Record<string, unknown>
-    >;
+    if (tool.type === 'function') {
+      const params = tool.function.parameters as {
+        properties: Record<string, Record<string, unknown>>;
+      };
+      const properties = params.properties;
 
-    expect(properties.shapeType.enum).toEqual(['rectangle', 'ellipse']);
+      expect(properties.shapeType.enum).toEqual(['rectangle', 'ellipse']);
+    }
   });
 
   it('should handle array parameters', () => {
     const tool = toOpenAITool(moveObjectsSchema);
-    const properties = tool.function.parameters.properties as Record<
-      string,
-      Record<string, unknown>
-    >;
+    if (tool.type === 'function') {
+      const params = tool.function.parameters as {
+        properties: Record<string, Record<string, unknown>>;
+      };
+      const properties = params.properties;
 
-    expect(properties.objectIds.type).toBe('array');
-    expect(properties.objectIds.items).toEqual({ type: 'string' });
+      expect(properties.objectIds.type).toBe('array');
+      expect(properties.objectIds.items).toEqual({ type: 'string' });
+    }
   });
 });
 

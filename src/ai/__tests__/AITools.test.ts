@@ -78,9 +78,11 @@ describe('AITools', () => {
 
       for (const tool of tools) {
         expect(tool.type).toBe('function');
-        expect(tool.function).toBeDefined();
-        expect(tool.function.name).toBeTruthy();
-        expect(tool.function.parameters).toBeDefined();
+        if (tool.type === 'function') {
+          expect(tool.function).toBeDefined();
+          expect(tool.function.name).toBeTruthy();
+          expect(tool.function.parameters).toBeDefined();
+        }
       }
     });
   });

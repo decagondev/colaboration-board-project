@@ -2,4 +2,4 @@
  * AI module hook exports.
  */
 
-export {};
+export { useAICommands } from './useAICommands';
