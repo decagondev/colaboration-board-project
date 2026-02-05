@@ -15,6 +15,7 @@ import {
   ToolbarComponent,
   PropertiesPanelComponent,
 } from '@board/index';
+import { AIProvider, AICommandBarWrapper, GlobalAIIndicator } from '@ai/index';
 import type { BoardMetadata } from '@board/context/BoardContext';
 import type {
   CanvasClickEvent,
@@ -820,22 +821,28 @@ function BoardContent() {
       </header>
       <main className="app-main">
         <BoardProvider board={boardMetadata}>
-          <CursorProvider boardId={DEFAULT_BOARD_ID}>
-            <ToolbarComponent
-              activeTool={activeTool}
-              onToolChange={handleToolChange}
-              showGrid={showGrid}
-              onGridToggle={handleGridToggle}
-            />
-            <BoardCanvasWithCursors
-              activeTool={activeTool}
-              onToolReset={handleToolReset}
-              userId={user?.uid ?? 'anonymous'}
-              showGrid={showGrid}
-            />
-            <BoardZoomControls />
-            <BoardPropertiesPanel />
-          </CursorProvider>
+          <AIProvider apiKey={import.meta.env.VITE_OPENAI_API_KEY}>
+            <CursorProvider boardId={DEFAULT_BOARD_ID}>
+              <ToolbarComponent
+                activeTool={activeTool}
+                onToolChange={handleToolChange}
+                showGrid={showGrid}
+                onGridToggle={handleGridToggle}
+              />
+              <BoardCanvasWithCursors
+                activeTool={activeTool}
+                onToolReset={handleToolReset}
+                userId={user?.uid ?? 'anonymous'}
+                showGrid={showGrid}
+              />
+              <BoardZoomControls />
+              <BoardPropertiesPanel />
+              <div className="ai-command-bar-container">
+                <AICommandBarWrapper />
+              </div>
+              <GlobalAIIndicator boardId={DEFAULT_BOARD_ID} showUser />
+            </CursorProvider>
+          </AIProvider>
         </BoardProvider>
       </main>
     </div>
