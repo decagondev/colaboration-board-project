@@ -21,8 +21,8 @@ import {
 
 describe('Tool Schemas', () => {
   describe('ALL_TOOL_SCHEMAS', () => {
-    it('should contain all 8 built-in tools', () => {
-      expect(ALL_TOOL_SCHEMAS).toHaveLength(8);
+    it('should contain all 12 built-in tools', () => {
+      expect(ALL_TOOL_SCHEMAS).toHaveLength(12);
     });
 
     it('should contain unique tool names', () => {

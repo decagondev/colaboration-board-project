@@ -58,7 +58,7 @@ describe('AITools', () => {
   describe('getSchemas', () => {
     it('should return all schemas', () => {
       const schemas = aiTools.getSchemas();
-      expect(schemas.length).toBe(8);
+      expect(schemas.length).toBe(12);
     });
 
     it('should return a copy of schemas', () => {
@@ -74,7 +74,7 @@ describe('AITools', () => {
       const tools = aiTools.getOpenAITools();
 
       expect(Array.isArray(tools)).toBe(true);
-      expect(tools.length).toBe(8);
+      expect(tools.length).toBe(12);
 
       for (const tool of tools) {
         expect(tool.type).toBe('function');

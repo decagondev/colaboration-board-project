@@ -14,6 +14,12 @@ import {
   CREATE_STICKY_NOTE_DEFAULTS,
   CREATE_SHAPE_DEFAULTS,
   CREATE_TEXT_DEFAULTS,
+  ARRANGE_IN_GRID_DEFAULTS,
+  SPACE_EVENLY_DEFAULTS,
+  CREATE_SWOT_TEMPLATE_DEFAULTS,
+  SWOT_QUADRANTS,
+  CREATE_USER_JOURNEY_TEMPLATE_DEFAULTS,
+  USER_JOURNEY_STAGES,
 } from '../schemas';
 
 /**
@@ -125,6 +131,10 @@ export class ToolExecutorRegistry {
     this.register('resizeObjects', executeResizeObjects);
     this.register('changeColor', executeChangeColor);
     this.register('deleteObjects', executeDeleteObjects);
+    this.register('arrangeInGrid', executeArrangeInGrid);
+    this.register('spaceEvenly', executeSpaceEvenly);
+    this.register('createSWOTTemplate', executeCreateSWOTTemplate);
+    this.register('createUserJourneyTemplate', executeCreateUserJourneyTemplate);
   }
 }
 
@@ -326,6 +336,222 @@ async function executeDeleteObjects(
     message: `Deleted ${objectIds.length} object(s)`,
     toolCalls: [],
     affectedObjects: objectIds,
+  };
+}
+
+/**
+ * Execute arrangeInGrid tool.
+ */
+async function executeArrangeInGrid(
+  args: Record<string, unknown>,
+  boardService: IBoardStateService
+): Promise<AICommandResult> {
+  const objectIds = args.objectIds as string[];
+  const columns = (args.columns as number) ?? ARRANGE_IN_GRID_DEFAULTS.columns;
+  const spacing = (args.spacing as number) ?? ARRANGE_IN_GRID_DEFAULTS.spacing;
+  const startX = (args.startX as number) ?? ARRANGE_IN_GRID_DEFAULTS.startX;
+  const startY = (args.startY as number) ?? ARRANGE_IN_GRID_DEFAULTS.startY;
+
+  const objects = objectIds
+    .map((id) => boardService.getObject(id))
+    .filter((obj): obj is NonNullable<typeof obj> => obj !== undefined);
+
+  if (objects.length === 0) {
+    return {
+      success: false,
+      message: 'No valid objects found to arrange',
+      toolCalls: [],
+      errors: ['No objects found with the specified IDs'],
+    };
+  }
+
+  const maxWidth = Math.max(...objects.map((obj) => obj.width));
+  const maxHeight = Math.max(...objects.map((obj) => obj.height));
+
+  for (let i = 0; i < objects.length; i++) {
+    const obj = objects[i];
+    const col = i % columns;
+    const row = Math.floor(i / columns);
+
+    const newX = startX + col * (maxWidth + spacing);
+    const newY = startY + row * (maxHeight + spacing);
+
+    await boardService.updateObject(obj.id, { x: newX, y: newY });
+  }
+
+  return {
+    success: true,
+    message: `Arranged ${objects.length} object(s) in a ${columns}-column grid`,
+    toolCalls: [],
+    affectedObjects: objectIds,
+  };
+}
+
+/**
+ * Execute spaceEvenly tool.
+ */
+async function executeSpaceEvenly(
+  args: Record<string, unknown>,
+  boardService: IBoardStateService
+): Promise<AICommandResult> {
+  const objectIds = args.objectIds as string[];
+  const direction =
+    (args.direction as string) ?? SPACE_EVENLY_DEFAULTS.direction;
+  const spacing = (args.spacing as number) ?? SPACE_EVENLY_DEFAULTS.spacing;
+
+  const objects = objectIds
+    .map((id) => boardService.getObject(id))
+    .filter((obj): obj is NonNullable<typeof obj> => obj !== undefined);
+
+  if (objects.length < 2) {
+    return {
+      success: false,
+      message: 'Need at least 2 objects to space evenly',
+      toolCalls: [],
+      errors: ['Insufficient objects for spacing'],
+    };
+  }
+
+  const isHorizontal = direction === 'horizontal';
+  const sortedObjects = [...objects].sort((a, b) =>
+    isHorizontal ? a.x - b.x : a.y - b.y
+  );
+
+  let currentPosition = isHorizontal ? sortedObjects[0].x : sortedObjects[0].y;
+
+  for (const obj of sortedObjects) {
+    if (isHorizontal) {
+      await boardService.updateObject(obj.id, { x: currentPosition });
+      currentPosition += obj.width + spacing;
+    } else {
+      await boardService.updateObject(obj.id, { y: currentPosition });
+      currentPosition += obj.height + spacing;
+    }
+  }
+
+  return {
+    success: true,
+    message: `Spaced ${objects.length} object(s) evenly ${direction}ly`,
+    toolCalls: [],
+    affectedObjects: objectIds,
+  };
+}
+
+/**
+ * Execute createSWOTTemplate tool.
+ */
+async function executeCreateSWOTTemplate(
+  args: Record<string, unknown>,
+  boardService: IBoardStateService
+): Promise<AICommandResult> {
+  const x = (args.x as number) ?? CREATE_SWOT_TEMPLATE_DEFAULTS.x;
+  const y = (args.y as number) ?? CREATE_SWOT_TEMPLATE_DEFAULTS.y;
+  const quadrantWidth =
+    (args.quadrantWidth as number) ?? CREATE_SWOT_TEMPLATE_DEFAULTS.quadrantWidth;
+  const quadrantHeight =
+    (args.quadrantHeight as number) ?? CREATE_SWOT_TEMPLATE_DEFAULTS.quadrantHeight;
+  const gap = CREATE_SWOT_TEMPLATE_DEFAULTS.gap;
+
+  const createdIds: string[] = [];
+
+  for (const quadrant of SWOT_QUADRANTS) {
+    const posX = x + quadrant.position.col * (quadrantWidth + gap);
+    const posY = y + quadrant.position.row * (quadrantHeight + gap);
+
+    const frameId = await boardService.createObject({
+      type: 'shape',
+      x: posX,
+      y: posY,
+      width: quadrantWidth,
+      height: quadrantHeight,
+      data: {
+        shapeType: 'rectangle',
+        color: quadrant.color,
+        opacity: 0.2,
+      },
+    });
+    createdIds.push(frameId);
+
+    const labelId = await boardService.createObject({
+      type: 'text',
+      x: posX + 10,
+      y: posY + 10,
+      width: quadrantWidth - 20,
+      height: 30,
+      data: {
+        text: quadrant.name,
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: quadrant.color,
+      },
+    });
+    createdIds.push(labelId);
+  }
+
+  return {
+    success: true,
+    message: 'Created SWOT analysis template with 4 quadrants',
+    toolCalls: [],
+    affectedObjects: createdIds,
+  };
+}
+
+/**
+ * Execute createUserJourneyTemplate tool.
+ */
+async function executeCreateUserJourneyTemplate(
+  args: Record<string, unknown>,
+  boardService: IBoardStateService
+): Promise<AICommandResult> {
+  const x = (args.x as number) ?? CREATE_USER_JOURNEY_TEMPLATE_DEFAULTS.x;
+  const y = (args.y as number) ?? CREATE_USER_JOURNEY_TEMPLATE_DEFAULTS.y;
+  const stageWidth =
+    (args.stageWidth as number) ?? CREATE_USER_JOURNEY_TEMPLATE_DEFAULTS.stageWidth;
+  const stageHeight =
+    (args.stageHeight as number) ?? CREATE_USER_JOURNEY_TEMPLATE_DEFAULTS.stageHeight;
+  const spacing = CREATE_USER_JOURNEY_TEMPLATE_DEFAULTS.spacing;
+
+  const createdIds: string[] = [];
+
+  for (let i = 0; i < USER_JOURNEY_STAGES.length; i++) {
+    const stage = USER_JOURNEY_STAGES[i];
+    const stageX = x + i * (stageWidth + spacing);
+
+    const frameId = await boardService.createObject({
+      type: 'shape',
+      x: stageX,
+      y: y,
+      width: stageWidth,
+      height: stageHeight,
+      data: {
+        shapeType: 'rectangle',
+        color: stage.color,
+        opacity: 0.15,
+      },
+    });
+    createdIds.push(frameId);
+
+    const labelId = await boardService.createObject({
+      type: 'text',
+      x: stageX + 10,
+      y: y + 10,
+      width: stageWidth - 20,
+      height: 30,
+      data: {
+        text: stage.name,
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: stage.color,
+      },
+    });
+    createdIds.push(labelId);
+  }
+
+  return {
+    success: true,
+    message: `Created user journey template with ${USER_JOURNEY_STAGES.length} stages`,
+    toolCalls: [],
+    affectedObjects: createdIds,
   };
 }
 
