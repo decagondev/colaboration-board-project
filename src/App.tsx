@@ -28,6 +28,8 @@ import type {
 } from '@board/components';
 import type { SyncableObject } from '@sync/interfaces/ISyncService';
 import { generateUUID, measureText } from '@shared/utils';
+import { ShapeRegistry } from '@board/shapes';
+import type { ShapeType } from '@board/shapes';
 import './App.css';
 
 /**
@@ -438,6 +440,27 @@ function BoardCanvasWithCursors({
           };
           break;
         }
+        default: {
+          const shapeDefinition = ShapeRegistry.get(activeTool as ShapeType);
+          if (shapeDefinition) {
+            const { width, height } = shapeDefinition.defaultSize;
+            newObject = {
+              ...baseObject,
+              type: 'shape',
+              x: event.canvasX - width / 2,
+              y: event.canvasY - height / 2,
+              width,
+              height,
+              data: {
+                shapeType: activeTool,
+                color: '#3b82f6',
+                strokeColor: '#1d4ed8',
+                strokeWidth: 2,
+              },
+            };
+          }
+          break;
+        }
       }
 
       if (newObject) {
@@ -567,6 +590,27 @@ function BoardCanvasWithCursors({
               color: '#1f2937',
             },
           };
+          break;
+        }
+        default: {
+          const shapeDefinition = ShapeRegistry.get(activeTool as ShapeType);
+          if (shapeDefinition) {
+            const { width, height } = shapeDefinition.defaultSize;
+            newObject = {
+              ...baseObject,
+              type: 'shape',
+              x: canvasX - width / 2,
+              y: canvasY - height / 2,
+              width,
+              height,
+              data: {
+                shapeType: activeTool,
+                color: '#3b82f6',
+                strokeColor: '#1d4ed8',
+                strokeWidth: 2,
+              },
+            };
+          }
           break;
         }
       }
