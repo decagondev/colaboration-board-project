@@ -214,13 +214,12 @@ export function PropertiesPanelComponent({
 
   if (!selectedObject) {
     return (
-      <div className={`properties-panel ${className}`} style={panelStyles}>
-        <div style={headerStyles}>Properties</div>
-        <div style={emptyStateStyles}>
-          <span style={emptyIconStyles}>⬚</span>
-          <span>No object selected</span>
-          <span style={hintStyles}>Click an object to edit its properties</span>
-        </div>
+      <div
+        className={`properties-panel-collapsed ${className}`}
+        style={collapsedPanelStyles}
+        title="Properties - Select an object to edit"
+      >
+        <span style={collapsedIconStyles}>☰</span>
       </div>
     );
   }
@@ -417,6 +416,35 @@ const panelStyles: React.CSSProperties = {
 };
 
 /**
+ * Collapsed panel styles when no object is selected.
+ */
+const collapsedPanelStyles: React.CSSProperties = {
+  position: 'fixed',
+  right: '20px',
+  top: '50%',
+  transform: 'translateY(-50%)',
+  width: '44px',
+  height: '44px',
+  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+  borderRadius: '12px',
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+  zIndex: 1000,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'default',
+};
+
+/**
+ * Collapsed icon styles.
+ */
+const collapsedIconStyles: React.CSSProperties = {
+  fontSize: '20px',
+  color: '#9ca3af',
+  lineHeight: 1,
+};
+
+/**
  * Header styles.
  */
 const headerStyles: React.CSSProperties = {
@@ -425,36 +453,6 @@ const headerStyles: React.CSSProperties = {
   fontWeight: 600,
   color: '#1f2937',
   borderBottom: '1px solid #e5e7eb',
-};
-
-/**
- * Empty state styles.
- */
-const emptyStateStyles: React.CSSProperties = {
-  padding: '32px 16px',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  gap: '8px',
-  color: '#6b7280',
-  fontSize: '13px',
-};
-
-/**
- * Empty state icon styles.
- */
-const emptyIconStyles: React.CSSProperties = {
-  fontSize: '32px',
-  marginBottom: '8px',
-  opacity: 0.5,
-};
-
-/**
- * Hint text styles.
- */
-const hintStyles: React.CSSProperties = {
-  fontSize: '11px',
-  color: '#9ca3af',
 };
 
 /**
