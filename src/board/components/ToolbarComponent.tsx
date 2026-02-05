@@ -5,17 +5,19 @@
  * Allows users to select different tools for creating and manipulating objects.
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
+import { ShapeFlyoutComponent } from './ShapeFlyoutComponent';
+import type { ShapeType } from '../shapes';
 
 /**
  * Available tool types.
+ * Includes basic tools and all shape types.
  */
 export type ToolType =
   | 'select'
   | 'sticky-note'
-  | 'rectangle'
-  | 'ellipse'
-  | 'text';
+  | 'text'
+  | ShapeType;
 
 /**
  * Props for the ToolbarComponent.
@@ -37,10 +39,42 @@ export interface ToolbarComponentProps {
  * Tool button configuration.
  */
 interface ToolButton {
-  id: ToolType;
+  id: ToolType | 'shapes';
   label: string;
   icon: string;
   shortcut?: string;
+  isShapesTrigger?: boolean;
+}
+
+/**
+ * Shape types for quick access on toolbar.
+ */
+const QUICK_SHAPES: ShapeType[] = ['rectangle', 'ellipse'];
+
+/**
+ * Check if a tool type is a shape.
+ *
+ * @param tool - The tool to check
+ * @returns True if the tool is a shape type
+ */
+function isShapeTool(tool: ToolType): tool is ShapeType {
+  const shapeTypes: ShapeType[] = [
+    'rectangle',
+    'ellipse',
+    'line',
+    'triangle',
+    'diamond',
+    'parallelogram',
+    'cylinder',
+    'document',
+    'process',
+    'terminator',
+    'delay',
+    'manual-input',
+    'display',
+    'connector-shape',
+  ];
+  return shapeTypes.includes(tool as ShapeType);
 }
 
 /**
@@ -51,6 +85,7 @@ const TOOLS: ToolButton[] = [
   { id: 'sticky-note', label: 'Sticky Note', icon: '📝', shortcut: 'N' },
   { id: 'rectangle', label: 'Rectangle', icon: '▢', shortcut: 'R' },
   { id: 'ellipse', label: 'Ellipse', icon: '○', shortcut: 'O' },
+  { id: 'shapes', label: 'More Shapes', icon: '⬢', isShapesTrigger: true },
   { id: 'text', label: 'Text', icon: 'T', shortcut: 'T' },
 ];
 
@@ -60,7 +95,7 @@ const TOOLS: ToolButton[] = [
  * Displays a vertical toolbar with tool buttons for:
  * - Select/pointer tool
  * - Sticky note creation
- * - Shape creation (rectangle, ellipse)
+ * - Shape creation (rectangle, ellipse, and more via flyout)
  * - Text creation
  *
  * @param props - Component props
@@ -81,55 +116,104 @@ export function ToolbarComponent({
   onGridToggle,
   className = '',
 }: ToolbarComponentProps): JSX.Element {
+  const [isShapesFlyoutOpen, setIsShapesFlyoutOpen] = useState(false);
+
   /**
    * Handle tool button click.
    */
   const handleToolClick = useCallback(
-    (tool: ToolType) => {
-      onToolChange(tool);
+    (tool: ToolButton) => {
+      if (tool.isShapesTrigger) {
+        setIsShapesFlyoutOpen((prev) => !prev);
+      } else {
+        onToolChange(tool.id as ToolType);
+        setIsShapesFlyoutOpen(false);
+      }
     },
     [onToolChange]
   );
 
+  /**
+   * Handle shape selection from flyout.
+   */
+  const handleShapeSelect = useCallback(
+    (shapeType: ShapeType) => {
+      onToolChange(shapeType);
+      setIsShapesFlyoutOpen(false);
+    },
+    [onToolChange]
+  );
+
+  /**
+   * Close the shapes flyout.
+   */
+  const handleCloseFlyout = useCallback(() => {
+    setIsShapesFlyoutOpen(false);
+  }, []);
+
+  /**
+   * Check if a tool is active, including if it's a shape selected from flyout.
+   */
+  const isToolActive = (toolId: ToolType | 'shapes'): boolean => {
+    if (toolId === 'shapes') {
+      return isShapesFlyoutOpen || (isShapeTool(activeTool) && !QUICK_SHAPES.includes(activeTool));
+    }
+    return activeTool === toolId;
+  };
+
   return (
-    <div className={`toolbar ${className}`} style={toolbarStyles}>
-      {TOOLS.map((tool) => (
-        <button
-          key={tool.id}
-          type="button"
-          title={`${tool.label}${tool.shortcut ? ` (${tool.shortcut})` : ''}`}
-          aria-label={tool.label}
-          aria-pressed={activeTool === tool.id}
-          onClick={() => handleToolClick(tool.id)}
-          style={{
-            ...buttonStyles,
-            ...(activeTool === tool.id ? activeButtonStyles : {}),
-          }}
-        >
-          <span style={iconStyles}>{tool.icon}</span>
-        </button>
-      ))}
-      
-      {/* Divider */}
-      {onGridToggle && <div style={dividerStyles} />}
-      
-      {/* Grid toggle button */}
-      {onGridToggle && (
-        <button
-          type="button"
-          title={`Toggle Grid (G)${showGrid ? ' - On' : ' - Off'}`}
-          aria-label="Toggle Grid"
-          aria-pressed={showGrid}
-          onClick={onGridToggle}
-          style={{
-            ...buttonStyles,
-            ...(showGrid ? activeButtonStyles : {}),
-          }}
-        >
-          <span style={iconStyles}>#</span>
-        </button>
-      )}
-    </div>
+    <>
+      <div className={`toolbar ${className}`} style={toolbarStyles}>
+        {TOOLS.map((tool) => (
+          <button
+            key={tool.id}
+            type="button"
+            title={`${tool.label}${tool.shortcut ? ` (${tool.shortcut})` : ''}`}
+            aria-label={tool.label}
+            aria-pressed={isToolActive(tool.id)}
+            aria-expanded={tool.isShapesTrigger ? isShapesFlyoutOpen : undefined}
+            aria-haspopup={tool.isShapesTrigger ? 'dialog' : undefined}
+            onClick={() => handleToolClick(tool)}
+            style={{
+              ...buttonStyles,
+              ...(isToolActive(tool.id) ? activeButtonStyles : {}),
+            }}
+          >
+            <span style={iconStyles}>{tool.icon}</span>
+            {tool.isShapesTrigger && (
+              <span style={expandIndicatorStyles}>▶</span>
+            )}
+          </button>
+        ))}
+        
+        {/* Divider */}
+        {onGridToggle && <div style={dividerStyles} />}
+        
+        {/* Grid toggle button */}
+        {onGridToggle && (
+          <button
+            type="button"
+            title={`Toggle Grid (G)${showGrid ? ' - On' : ' - Off'}`}
+            aria-label="Toggle Grid"
+            aria-pressed={showGrid}
+            onClick={onGridToggle}
+            style={{
+              ...buttonStyles,
+              ...(showGrid ? activeButtonStyles : {}),
+            }}
+          >
+            <span style={iconStyles}>#</span>
+          </button>
+        )}
+      </div>
+
+      <ShapeFlyoutComponent
+        isOpen={isShapesFlyoutOpen}
+        onClose={handleCloseFlyout}
+        onShapeSelect={handleShapeSelect}
+        selectedShape={isShapeTool(activeTool) ? activeTool : undefined}
+      />
+    </>
   );
 }
 
@@ -155,6 +239,7 @@ const toolbarStyles: React.CSSProperties = {
  * Tool button styles.
  */
 const buttonStyles: React.CSSProperties = {
+  position: 'relative',
   width: '44px',
   height: '44px',
   border: '1px solid #e5e7eb',
@@ -192,6 +277,17 @@ const dividerStyles: React.CSSProperties = {
   height: '1px',
   backgroundColor: '#e5e7eb',
   margin: '4px auto',
+};
+
+/**
+ * Expand indicator styles for flyout trigger.
+ */
+const expandIndicatorStyles: React.CSSProperties = {
+  position: 'absolute',
+  right: '4px',
+  bottom: '4px',
+  fontSize: '8px',
+  opacity: 0.6,
 };
 
 export default ToolbarComponent;

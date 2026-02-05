@@ -16,6 +16,7 @@ import type {
 } from '../interfaces/IAIService';
 import { AIServiceError } from '../interfaces/IAIService';
 import type { SyncableObject } from '@sync/interfaces/ISyncService';
+import { SHAPE_TYPES } from '../tools/schemas/createShape';
 
 /**
  * Configuration options for OpenAIService.
@@ -118,9 +119,9 @@ export class OpenAIService implements IAIService {
       },
       {
         name: 'createShape',
-        description: 'Create a shape (rectangle or ellipse) on the board',
+        description: 'Create a shape on the board. Supports basic shapes and flowchart shapes.',
         parameters: [
-          { name: 'shapeType', type: 'string', description: 'Type of shape', required: true, enum: ['rectangle', 'ellipse'] },
+          { name: 'shapeType', type: 'string', description: 'Type of shape (basic: rectangle, ellipse, line, triangle; flowchart: diamond, parallelogram, cylinder, document, process, terminator, delay, manual-input, display, connector-shape)', required: true, enum: [...SHAPE_TYPES] },
           { name: 'x', type: 'number', description: 'X position', required: false, default: 200 },
           { name: 'y', type: 'number', description: 'Y position', required: false, default: 200 },
           { name: 'width', type: 'number', description: 'Width of the shape', required: false, default: 150 },

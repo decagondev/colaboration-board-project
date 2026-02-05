@@ -2,14 +2,31 @@
  * Create Shape Tool Schema
  *
  * Defines the schema for creating shapes on the board.
+ * Includes basic shapes and flowchart shapes.
  */
 
 import type { ToolSchema } from './ToolSchema';
 
 /**
  * Supported shape types.
+ * Includes basic shapes and flowchart shapes.
  */
-export const SHAPE_TYPES = ['rectangle', 'ellipse'] as const;
+export const SHAPE_TYPES = [
+  'rectangle',
+  'ellipse',
+  'line',
+  'triangle',
+  'diamond',
+  'parallelogram',
+  'cylinder',
+  'document',
+  'process',
+  'terminator',
+  'delay',
+  'manual-input',
+  'display',
+  'connector-shape',
+] as const;
 export type ShapeType = (typeof SHAPE_TYPES)[number];
 
 /**
@@ -29,12 +46,13 @@ export const CREATE_SHAPE_DEFAULTS = {
 export const createShapeSchema: ToolSchema = {
   name: 'createShape',
   description:
-    'Create a shape (rectangle or ellipse) on the board. Shapes can be used for containers, diagrams, or visual elements.',
+    'Create a shape on the board. Supports basic shapes (rectangle, ellipse, line, triangle) and flowchart shapes (diamond for decisions, parallelogram for I/O, cylinder for database, document, process, terminator for start/end, delay, manual-input, display, connector-shape).',
   parameters: [
     {
       name: 'shapeType',
       type: 'string',
-      description: 'Type of shape to create: rectangle or ellipse',
+      description:
+        'Type of shape to create. Basic: rectangle, ellipse, line, triangle. Flowchart: diamond (decision), parallelogram (I/O), cylinder (database), document, process, terminator (start/end), delay, manual-input, display, connector-shape.',
       required: true,
       enum: [...SHAPE_TYPES],
     },

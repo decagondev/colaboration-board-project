@@ -14,6 +14,8 @@ import { LassoOverlayComponent } from './LassoOverlayComponent';
 import { GridOverlayComponent } from './GridOverlayComponent';
 import type { GridConfig } from './GridOverlayComponent';
 import type { LassoState } from '../interfaces/ISelectionService';
+import { ShapeRegistry } from '../shapes';
+import type { ShapeType, ShapeRenderProps } from '../shapes';
 
 /**
  * Viewport state for canvas positioning and scaling.
@@ -655,15 +657,70 @@ export function BoardCanvasComponent({
   );
 
   /**
-   * Render a shape object (rectangle, ellipse, etc.).
+   * Render a shape object using ShapeRegistry for extended shapes.
+   * Falls back to built-in rendering for basic shapes not in registry.
    */
   const renderShape = useCallback(
     (obj: RenderableObject, isSelected: boolean): JSX.Element => {
-      const shapeType = (obj.data?.shapeType as string) ?? 'rectangle';
+      const shapeType = (obj.data?.shapeType as ShapeType) ?? 'rectangle';
       const color = (obj.data?.color as string) ?? '#3b82f6';
       const strokeColor = (obj.data?.strokeColor as string) ?? '#1d4ed8';
       const strokeWidth = (obj.data?.strokeWidth as number) ?? 2;
       const rotation = (obj.data?.rotation as number) ?? 0;
+
+      const shapeDefinition = ShapeRegistry.get(shapeType);
+
+      const renderShapeContent = (): JSX.Element => {
+        if (shapeDefinition) {
+          const renderProps: ShapeRenderProps = {
+            x: 0,
+            y: 0,
+            width: obj.width,
+            height: obj.height,
+            fill: color,
+            stroke: isSelected ? '#4A90D9' : strokeColor,
+            strokeWidth: isSelected ? Math.max(strokeWidth, 2) : strokeWidth,
+            isSelected,
+            shadowEnabled: true,
+            shadowColor: 'rgba(0, 0, 0, 0.1)',
+            shadowBlur: isSelected ? 10 : 5,
+            shadowOffsetX: 2,
+            shadowOffsetY: 2,
+          };
+          return shapeDefinition.render(renderProps);
+        }
+
+        if (shapeType === 'ellipse') {
+          return (
+            <Ellipse
+              x={obj.width / 2}
+              y={obj.height / 2}
+              radiusX={obj.width / 2}
+              radiusY={obj.height / 2}
+              fill={color}
+              stroke={isSelected ? '#4A90D9' : strokeColor}
+              strokeWidth={isSelected ? Math.max(strokeWidth, 2) : strokeWidth}
+              shadowColor="rgba(0, 0, 0, 0.1)"
+              shadowBlur={isSelected ? 10 : 5}
+              shadowOffset={{ x: 2, y: 2 }}
+            />
+          );
+        }
+
+        return (
+          <Rect
+            width={obj.width}
+            height={obj.height}
+            fill={color}
+            stroke={isSelected ? '#4A90D9' : strokeColor}
+            strokeWidth={isSelected ? Math.max(strokeWidth, 2) : strokeWidth}
+            cornerRadius={4}
+            shadowColor="rgba(0, 0, 0, 0.1)"
+            shadowBlur={isSelected ? 10 : 5}
+            shadowOffset={{ x: 2, y: 2 }}
+          />
+        );
+      };
 
       return (
         <Group
@@ -687,32 +744,7 @@ export function BoardCanvasComponent({
             onObjectDragEnd?.(obj.id, e.target.x(), e.target.y());
           }}
         >
-          {shapeType === 'ellipse' ? (
-            <Ellipse
-              x={obj.width / 2}
-              y={obj.height / 2}
-              radiusX={obj.width / 2}
-              radiusY={obj.height / 2}
-              fill={color}
-              stroke={isSelected ? '#4A90D9' : strokeColor}
-              strokeWidth={isSelected ? Math.max(strokeWidth, 2) : strokeWidth}
-              shadowColor="rgba(0, 0, 0, 0.1)"
-              shadowBlur={isSelected ? 10 : 5}
-              shadowOffset={{ x: 2, y: 2 }}
-            />
-          ) : (
-            <Rect
-              width={obj.width}
-              height={obj.height}
-              fill={color}
-              stroke={isSelected ? '#4A90D9' : strokeColor}
-              strokeWidth={isSelected ? Math.max(strokeWidth, 2) : strokeWidth}
-              cornerRadius={4}
-              shadowColor="rgba(0, 0, 0, 0.1)"
-              shadowBlur={isSelected ? 10 : 5}
-              shadowOffset={{ x: 2, y: 2 }}
-            />
-          )}
+          {renderShapeContent()}
         </Group>
       );
     },

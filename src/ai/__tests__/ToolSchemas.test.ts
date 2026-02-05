@@ -80,12 +80,15 @@ describe('Tool Schemas', () => {
       expect(shapeTypeParam?.required).toBe(true);
     });
 
-    it('should have shapeType enum with rectangle and ellipse', () => {
+    it('should have shapeType enum with all supported shapes', () => {
       const shapeTypeParam = createShapeSchema.parameters.find(
         (p) => p.name === 'shapeType'
       );
+      expect(shapeTypeParam?.enum).toEqual([...SHAPE_TYPES]);
       expect(shapeTypeParam?.enum).toContain('rectangle');
       expect(shapeTypeParam?.enum).toContain('ellipse');
+      expect(shapeTypeParam?.enum).toContain('diamond');
+      expect(shapeTypeParam?.enum).toContain('cylinder');
     });
 
     it('should have optional dimension parameters', () => {
@@ -237,7 +240,7 @@ describe('toOpenAITool', () => {
       };
       const properties = params.properties;
 
-      expect(properties.shapeType.enum).toEqual(['rectangle', 'ellipse']);
+      expect(properties.shapeType.enum).toEqual([...SHAPE_TYPES]);
     }
   });
 

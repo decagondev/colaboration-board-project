@@ -40,11 +40,9 @@ import {
 import { BOARD_COLORS, DEFAULT_COLOR_SCHEME } from '../interfaces/IColorable';
 import { calculateConnectionPoints } from '../interfaces/IConnectable';
 import { generateUUID } from '@shared/utils/uuid';
+import type { ShapeType } from '../shapes';
 
-/**
- * Shape types.
- */
-export type ShapeType = 'rectangle' | 'ellipse' | 'line' | 'triangle';
+export type { ShapeType } from '../shapes';
 
 /**
  * Shape-specific data.
