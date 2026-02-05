@@ -69,3 +69,22 @@ export function isDevelopment(): boolean {
 export function isProduction(): boolean {
   return import.meta.env.PROD;
 }
+
+/**
+ * Checks if the OpenAI API key is configured.
+ *
+ * @returns True if the OpenAI API key is available
+ */
+export function isOpenAIConfigured(): boolean {
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  return typeof apiKey === 'string' && apiKey.length > 0;
+}
+
+/**
+ * Gets the OpenAI API key.
+ *
+ * @returns The OpenAI API key or empty string if not configured
+ */
+export function getOpenAIApiKey(): string {
+  return import.meta.env.VITE_OPENAI_API_KEY || '';
+}
