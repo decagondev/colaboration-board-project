@@ -1,0 +1,34 @@
+---
+description: Git workflow - do not merge to main branch
+alwaysApply: true
+---
+
+# Git Workflow: Main Branch Protection
+
+## Critical Rule
+
+**NEVER merge to `main` branch.** Only the user/project owner merges to main.
+
+## Allowed Operations
+
+- Create feature branches from `dev`
+- Commit changes to feature branches
+- Merge feature branches to `dev`
+- Push to `dev` branch
+
+## Forbidden Operations
+
+- `git merge ... main` - DO NOT merge anything into main
+- `git checkout main && git merge ...` - DO NOT do this
+- `git push origin main` - DO NOT push to main
+
+## Workflow
+
+```
+feature/xyz → dev → (user merges to main)
+```
+
+1. Work on feature branches
+2. Merge completed features to `dev`
+3. Push `dev` for deployments (Netlify deploys from `dev`)
+4. **Stop there** - user handles main branch
