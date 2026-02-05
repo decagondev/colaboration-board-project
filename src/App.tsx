@@ -126,6 +126,8 @@ function BoardCanvasWithCursors({
 
   const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null);
   const [hoveredAnchor, setHoveredAnchor] = useState<ConnectionAnchor | null>(null);
+  const [dragOverFrameId, setDragOverFrameId] = useState<string | null>(null);
+  const isDraggingRef = useRef<string | null>(null);
 
   /**
    * Convert board objects to renderable format.
@@ -397,15 +399,190 @@ function BoardCanvasWithCursors({
   }, [clearSelection]);
 
   /**
-   * Handle object drag end to update position and connected connectors.
+   * Check which frame (if any) contains the given bounds.
+   */
+  const findFrameAtBounds = useCallback(
+    (bounds: { x: number; y: number; width: number; height: number }): string | null => {
+      const frames = objects.filter((o) => o.type === 'frame');
+      const CONTAINMENT_THRESHOLD = 0.3;
+
+      let bestFrameId: string | null = null;
+      let bestOverlap = 0;
+
+      for (const frame of frames) {
+        const titleHeight = (frame.data?.showTitle as boolean) !== false ? 32 : 0;
+        const padding = { top: 40, right: 8, bottom: 8, left: 8 };
+        
+        const contentBounds = {
+          x: frame.x + padding.left,
+          y: frame.y + titleHeight + padding.top,
+          width: frame.width - padding.left - padding.right,
+          height: frame.height - titleHeight - padding.top - padding.bottom,
+        };
+
+        const overlapX = Math.max(
+          0,
+          Math.min(contentBounds.x + contentBounds.width, bounds.x + bounds.width) -
+            Math.max(contentBounds.x, bounds.x)
+        );
+        const overlapY = Math.max(
+          0,
+          Math.min(contentBounds.y + contentBounds.height, bounds.y + bounds.height) -
+            Math.max(contentBounds.y, bounds.y)
+        );
+
+        const overlapArea = overlapX * overlapY;
+        const objectArea = bounds.width * bounds.height;
+        const overlapPercentage = objectArea > 0 ? overlapArea / objectArea : 0;
+
+        if (overlapPercentage >= CONTAINMENT_THRESHOLD && overlapPercentage > bestOverlap) {
+          bestFrameId = frame.id;
+          bestOverlap = overlapPercentage;
+        }
+      }
+
+      return bestFrameId;
+    },
+    [objects]
+  );
+
+  /**
+   * Handle object drag start to track dragging state.
+   */
+  const handleObjectDragStart = useCallback((objectId: string) => {
+    const obj = objects.find((o) => o.id === objectId);
+    if (obj && obj.type !== 'frame' && obj.type !== 'connector') {
+      isDraggingRef.current = objectId;
+    }
+  }, [objects]);
+
+  /**
+   * Handle object dragging to show frame hover feedback.
+   */
+  const handleObjectDrag = useCallback(
+    (objectId: string, x: number, y: number) => {
+      if (isDraggingRef.current !== objectId) return;
+      
+      const obj = objects.find((o) => o.id === objectId);
+      if (!obj || obj.type === 'frame' || obj.type === 'connector') return;
+
+      const frameId = findFrameAtBounds({
+        x,
+        y,
+        width: obj.width,
+        height: obj.height,
+      });
+
+      setDragOverFrameId(frameId);
+    },
+    [objects, findFrameAtBounds]
+  );
+
+  /**
+   * Handle object drag end to update position, manage frame containment, and update connectors.
    */
   const handleObjectDragEnd = useCallback(
     (objectId: string, x: number, y: number) => {
+      isDraggingRef.current = null;
+      setDragOverFrameId(null);
       updateObject(objectId, { x, y });
       
       const movedObject = objects.find((o) => o.id === objectId);
       if (!movedObject) return;
+
+      /**
+       * Frame containment logic:
+       * Check if the moved object should be added to or removed from a frame.
+       */
+      if (movedObject.type !== 'frame' && movedObject.type !== 'connector') {
+        const objectBounds = {
+          x,
+          y,
+          width: movedObject.width,
+          height: movedObject.height,
+        };
+
+        const frames = objects.filter((o) => o.type === 'frame');
+        let bestFrame: typeof frames[0] | null = null;
+        let bestOverlap = 0;
+        const CONTAINMENT_THRESHOLD = 0.5;
+
+        for (const frame of frames) {
+          const titleHeight = (frame.data?.showTitle as boolean) !== false ? 32 : 0;
+          const padding = { top: 40, right: 8, bottom: 8, left: 8 };
+          
+          const contentBounds = {
+            x: frame.x + padding.left,
+            y: frame.y + titleHeight + padding.top,
+            width: frame.width - padding.left - padding.right,
+            height: frame.height - titleHeight - padding.top - padding.bottom,
+          };
+
+          const overlapX = Math.max(
+            0,
+            Math.min(contentBounds.x + contentBounds.width, objectBounds.x + objectBounds.width) -
+              Math.max(contentBounds.x, objectBounds.x)
+          );
+          const overlapY = Math.max(
+            0,
+            Math.min(contentBounds.y + contentBounds.height, objectBounds.y + objectBounds.height) -
+              Math.max(contentBounds.y, objectBounds.y)
+          );
+
+          const overlapArea = overlapX * overlapY;
+          const objectArea = objectBounds.width * objectBounds.height;
+          const overlapPercentage = objectArea > 0 ? overlapArea / objectArea : 0;
+
+          if (overlapPercentage >= CONTAINMENT_THRESHOLD && overlapPercentage > bestOverlap) {
+            bestFrame = frame;
+            bestOverlap = overlapPercentage;
+          }
+        }
+
+        for (const frame of frames) {
+          const currentChildIds = (frame.data?.childIds as string[]) ?? [];
+          const isCurrentlyInFrame = currentChildIds.includes(objectId);
+
+          if (frame === bestFrame && !isCurrentlyInFrame) {
+            updateObject(frame.id, {
+              data: {
+                ...frame.data,
+                childIds: [...currentChildIds, objectId],
+              },
+            });
+          } else if (frame !== bestFrame && isCurrentlyInFrame) {
+            updateObject(frame.id, {
+              data: {
+                ...frame.data,
+                childIds: currentChildIds.filter((id) => id !== objectId),
+              },
+            });
+          }
+        }
+      }
+
+      /**
+       * If the moved object is a frame, move all its children with it.
+       */
+      if (movedObject.type === 'frame') {
+        const childIds = (movedObject.data?.childIds as string[]) ?? [];
+        const deltaX = x - movedObject.x;
+        const deltaY = y - movedObject.y;
+
+        for (const childId of childIds) {
+          const child = objects.find((o) => o.id === childId);
+          if (child) {
+            updateObject(childId, {
+              x: child.x + deltaX,
+              y: child.y + deltaY,
+            });
+          }
+        }
+      }
       
+      /**
+       * Update connected connectors when an object moves.
+       */
       objects
         .filter((obj) => obj.type === 'connector')
         .forEach((connector) => {
@@ -820,6 +997,8 @@ function BoardCanvasWithCursors({
         onObjectSelect={handleObjectSelect}
         onBackgroundClick={handleBackgroundClick}
         onCanvasClick={handleCanvasClick}
+        onObjectDragStart={handleObjectDragStart}
+        onObjectDrag={handleObjectDrag}
         onObjectDragEnd={handleObjectDragEnd}
         onObjectDoubleClick={handleObjectDoubleClick}
         onObjectTransformEnd={handleObjectTransformEnd}
@@ -827,6 +1006,7 @@ function BoardCanvasWithCursors({
         onLassoSelect={handleLassoSelect}
         showGrid={showGrid}
         connectorPreview={connectorPreview}
+        hoveredFrameId={dragOverFrameId}
       >
         <CursorOverlayComponent />
         <ConnectionAnchorOverlay

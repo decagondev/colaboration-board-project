@@ -116,6 +116,10 @@ export interface BoardCanvasProps {
   onBackgroundClick?: () => void;
   /** Callback when canvas background is clicked with coordinates */
   onCanvasClick?: (event: CanvasClickEvent) => void;
+  /** Callback when object drag starts */
+  onObjectDragStart?: (objectId: string) => void;
+  /** Callback when object is being dragged (for live feedback) */
+  onObjectDrag?: (objectId: string, x: number, y: number) => void;
   /** Callback when an object position changes */
   onObjectDragEnd?: (objectId: string, x: number, y: number) => void;
   /** Callback when object is double-clicked for editing */
@@ -199,6 +203,8 @@ export function BoardCanvasComponent({
   onObjectSelect,
   onBackgroundClick,
   onCanvasClick,
+  onObjectDragStart,
+  onObjectDrag,
   onObjectDragEnd,
   onObjectDoubleClick,
   onObjectTransformEnd,
@@ -634,6 +640,12 @@ export function BoardCanvasComponent({
           onTap={() => onObjectSelect?.(obj.id)}
           onDblClick={() => onObjectDoubleClick?.(obj.id)}
           onDblTap={() => onObjectDoubleClick?.(obj.id)}
+          onDragStart={() => {
+            onObjectDragStart?.(obj.id);
+          }}
+          onDragMove={(e) => {
+            onObjectDrag?.(obj.id, e.target.x(), e.target.y());
+          }}
           onDragEnd={(e) => {
             onObjectDragEnd?.(obj.id, e.target.x(), e.target.y());
           }}
@@ -678,7 +690,7 @@ export function BoardCanvasComponent({
         </Group>
       );
     },
-    [onObjectSelect, onObjectDoubleClick, onObjectDragEnd, registerNodeRef]
+    [onObjectSelect, onObjectDoubleClick, onObjectDragStart, onObjectDrag, onObjectDragEnd, registerNodeRef]
   );
 
   /**
@@ -765,6 +777,12 @@ export function BoardCanvasComponent({
           onTap={() => onObjectSelect?.(obj.id)}
           onDblClick={() => onObjectDoubleClick?.(obj.id)}
           onDblTap={() => onObjectDoubleClick?.(obj.id)}
+          onDragStart={() => {
+            onObjectDragStart?.(obj.id);
+          }}
+          onDragMove={(e) => {
+            onObjectDrag?.(obj.id, e.target.x(), e.target.y());
+          }}
           onDragEnd={(e) => {
             onObjectDragEnd?.(obj.id, e.target.x(), e.target.y());
           }}
@@ -773,7 +791,7 @@ export function BoardCanvasComponent({
         </Group>
       );
     },
-    [onObjectSelect, onObjectDoubleClick, onObjectDragEnd, registerNodeRef]
+    [onObjectSelect, onObjectDoubleClick, onObjectDragStart, onObjectDrag, onObjectDragEnd, registerNodeRef]
   );
 
   /**
@@ -804,6 +822,12 @@ export function BoardCanvasComponent({
           onTap={() => onObjectSelect?.(obj.id)}
           onDblClick={() => onObjectDoubleClick?.(obj.id)}
           onDblTap={() => onObjectDoubleClick?.(obj.id)}
+          onDragStart={() => {
+            onObjectDragStart?.(obj.id);
+          }}
+          onDragMove={(e) => {
+            onObjectDrag?.(obj.id, e.target.x(), e.target.y());
+          }}
           onDragEnd={(e) => {
             onObjectDragEnd?.(obj.id, e.target.x(), e.target.y());
           }}
@@ -834,7 +858,7 @@ export function BoardCanvasComponent({
         </Group>
       );
     },
-    [onObjectSelect, onObjectDoubleClick, onObjectDragEnd, registerNodeRef]
+    [onObjectSelect, onObjectDoubleClick, onObjectDragStart, onObjectDrag, onObjectDragEnd, registerNodeRef]
   );
 
   /**
@@ -1314,6 +1338,12 @@ export function BoardCanvasComponent({
           onTap={() => onObjectSelect?.(obj.id)}
           onDblClick={() => onObjectDoubleClick?.(obj.id)}
           onDblTap={() => onObjectDoubleClick?.(obj.id)}
+          onDragStart={() => {
+            onObjectDragStart?.(obj.id);
+          }}
+          onDragMove={(e) => {
+            onObjectDrag?.(obj.id, e.target.x(), e.target.y());
+          }}
           onDragEnd={(e) => {
             onObjectDragEnd?.(obj.id, e.target.x(), e.target.y());
           }}
@@ -1401,6 +1431,8 @@ export function BoardCanvasComponent({
       hoveredFrameId,
       onObjectSelect,
       onObjectDoubleClick,
+      onObjectDragStart,
+      onObjectDrag,
       onObjectDragEnd,
       registerNodeRef,
     ]
@@ -1480,6 +1512,8 @@ export function BoardCanvasComponent({
       renderConnector,
       renderFrameFromData,
       onObjectSelect,
+      onObjectDragStart,
+      onObjectDrag,
       onObjectDragEnd,
     ]
   );
