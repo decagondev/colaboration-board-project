@@ -110,10 +110,18 @@ function BoardCanvasWithCursors({
 
   /**
    * Handle keyboard events for delete and other shortcuts.
+   * Ignores events when user is focused on input/textarea elements.
    */
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (editingState.objectId) return;
+
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedObjectIds.size > 0) {

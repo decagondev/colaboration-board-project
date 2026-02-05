@@ -90,11 +90,11 @@ const COLOR_PRESETS = [
  * Font size presets with labels and values.
  */
 const FONT_SIZE_PRESETS = [
-  { label: 'SM', value: 12 },
-  { label: 'MD', value: 16 },
-  { label: 'LG', value: 24 },
-  { label: 'XL', value: 32 },
-  { label: '2XL', value: 48 },
+  { label: 'SM', value: 20 },
+  { label: 'MD', value: 28 },
+  { label: 'LG', value: 36 },
+  { label: 'XL', value: 48 },
+  { label: '2XL', value: 64 },
 ];
 
 /**
