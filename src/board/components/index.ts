@@ -60,3 +60,6 @@ export type {
   PropertyChangeEvent,
   PropertyPanelObject,
 } from './PropertiesPanelComponent';
+
+export { ConnectionAnchorOverlay } from './ConnectionAnchorOverlay';
+export type { ConnectionAnchorOverlayProps } from './ConnectionAnchorOverlay';
