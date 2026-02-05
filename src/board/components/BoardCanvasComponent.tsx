@@ -1225,6 +1225,7 @@ export function BoardCanvasComponent({
 
   /**
    * Render a frame object using FrameComponent.
+   * Used when Frame class instances are passed via frames prop.
    */
   const renderFrame = useCallback(
     (frame: Frame): JSX.Element => {
@@ -1278,6 +1279,134 @@ export function BoardCanvasComponent({
   );
 
   /**
+   * Render a frame from RenderableObject data.
+   * Used when frames come through the objects array as plain data.
+   */
+  const renderFrameFromData = useCallback(
+    (obj: RenderableObject, isSelected: boolean): JSX.Element => {
+      const title = (obj.data?.title as string) ?? 'Frame';
+      const showTitle = (obj.data?.showTitle as boolean) ?? true;
+      const backgroundOpacity = (obj.data?.backgroundOpacity as number) ?? 0.1;
+      const childIds = (obj.data?.childIds as string[]) ?? [];
+      const rotation = (obj.data?.rotation as number) ?? 0;
+      const fillColor = (obj.data?.fillColor as string) ?? '#e5e7eb';
+      const strokeColor = (obj.data?.strokeColor as string) ?? '#9ca3af';
+      const titleHeight = showTitle ? 32 : 0;
+
+      const isDropTarget = dropTargetFrameId === obj.id;
+      const isHoveredForDrop = hoveredFrameId === obj.id;
+
+      return (
+        <Group
+          key={obj.id}
+          ref={(node) => registerNodeRef(obj.id, node)}
+          x={obj.x}
+          y={obj.y}
+          width={obj.width}
+          height={obj.height}
+          rotation={rotation}
+          draggable
+          onClick={(e) => {
+            e.cancelBubble = true;
+            objectClickedRef.current = true;
+            onObjectSelect?.(obj.id);
+          }}
+          onTap={() => onObjectSelect?.(obj.id)}
+          onDblClick={() => onObjectDoubleClick?.(obj.id)}
+          onDblTap={() => onObjectDoubleClick?.(obj.id)}
+          onDragEnd={(e) => {
+            onObjectDragEnd?.(obj.id, e.target.x(), e.target.y());
+          }}
+        >
+          {/* Drop target glow effect */}
+          {isHoveredForDrop && (
+            <Rect
+              x={-4}
+              y={-4}
+              width={obj.width + 8}
+              height={obj.height + 8}
+              fill="rgba(74, 144, 217, 0.3)"
+              cornerRadius={8}
+              listening={false}
+            />
+          )}
+          {/* Background */}
+          <Rect
+            width={obj.width}
+            height={obj.height}
+            fill={`rgba(229, 231, 235, ${backgroundOpacity})`}
+            stroke={isHoveredForDrop ? '#6DB3F2' : isDropTarget ? '#4A90D9' : isSelected ? '#4A90D9' : strokeColor}
+            strokeWidth={isHoveredForDrop ? 3 : isDropTarget || isSelected ? 2 : 1}
+            cornerRadius={4}
+            shadowColor={isHoveredForDrop ? '#4A90D9' : undefined}
+            shadowBlur={isHoveredForDrop ? 10 : 0}
+            shadowOpacity={isHoveredForDrop ? 0.5 : 0}
+          />
+          {/* Title bar */}
+          {showTitle && (
+            <>
+              <Rect
+                width={obj.width}
+                height={titleHeight}
+                fill={fillColor || '#e5e7eb'}
+                cornerRadius={[4, 4, 0, 0]}
+              />
+              <Text
+                x={8}
+                y={8}
+                width={obj.width - 50}
+                height={titleHeight - 16}
+                text={title}
+                fontFamily="Arial, sans-serif"
+                fontSize={14}
+                fontStyle="bold"
+                fill="#374151"
+                verticalAlign="middle"
+                ellipsis={true}
+                listening={false}
+              />
+              {/* Child count badge */}
+              {childIds.length > 0 && (
+                <>
+                  <Rect
+                    x={obj.width - 32}
+                    y={6}
+                    width={24}
+                    height={20}
+                    fill="rgba(0, 0, 0, 0.15)"
+                    cornerRadius={10}
+                  />
+                  <Text
+                    x={obj.width - 32}
+                    y={6}
+                    width={24}
+                    height={20}
+                    text={String(childIds.length)}
+                    fontFamily="Arial, sans-serif"
+                    fontSize={11}
+                    fill="#374151"
+                    align="center"
+                    verticalAlign="middle"
+                    listening={false}
+                  />
+                </>
+              )}
+            </>
+          )}
+        </Group>
+      );
+    },
+    [
+      dropTargetFrameId,
+      hoveredFrameId,
+      onObjectSelect,
+      onObjectDoubleClick,
+      onObjectDragEnd,
+      registerNodeRef,
+    ]
+  );
+
+  /**
    * Filter frames to only those visible in the viewport.
    */
   const visibleFrames = useMemo(() => {
@@ -1291,6 +1420,13 @@ export function BoardCanvasComponent({
       });
     });
   }, [frames, isVisible]);
+
+  /**
+   * Filter frame objects from renderableObjects for separate rendering.
+   */
+  const frameObjects = useMemo(() => {
+    return visibleObjects.filter((obj) => obj.type === 'frame');
+  }, [visibleObjects]);
 
   /**
    * Render a single object based on its type.
@@ -1309,7 +1445,7 @@ export function BoardCanvasComponent({
         case 'connector':
           return renderConnector(obj, isSelected);
         case 'frame':
-          return <Group key={obj.id} />;
+          return renderFrameFromData(obj, isSelected);
         default:
           return (
             <Rect
@@ -1342,6 +1478,7 @@ export function BoardCanvasComponent({
       renderShape,
       renderTextObject,
       renderConnector,
+      renderFrameFromData,
       onObjectSelect,
       onObjectDragEnd,
     ]
@@ -1413,8 +1550,10 @@ export function BoardCanvasComponent({
 
       {/* Object layer - main content */}
       <Layer name="objects">
-        {/* 0. Render frames first (below everything else - they act as containers) */}
+        {/* 0. Render Frame class instances from frames prop (if any) */}
         {visibleFrames.map(renderFrame)}
+        {/* 0b. Render frame objects from objects array (below everything else - they act as containers) */}
+        {frameObjects.map(renderObject)}
         {/* 1. Render connector lines (below shapes) */}
         {visibleObjects.filter(obj => obj.type === 'connector').map(obj => 
           renderConnectorLine(obj, selectedIds.has(obj.id))

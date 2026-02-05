@@ -730,6 +730,24 @@ function BoardCanvasWithCursors({
           };
           break;
         }
+        case 'frame': {
+          newObject = {
+            ...baseObject,
+            type: 'frame',
+            x: event.canvasX - 200,
+            y: event.canvasY - 150,
+            width: 400,
+            height: 300,
+            data: {
+              title: 'Frame',
+              childIds: [],
+              showTitle: true,
+              backgroundOpacity: 0.1,
+              snapBehavior: 'none',
+            },
+          };
+          break;
+        }
         default: {
           const shapeDefinition = ShapeRegistry.get(activeTool as ShapeType);
           if (shapeDefinition) {
