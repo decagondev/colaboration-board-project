@@ -40,9 +40,10 @@ import {
 } from '../interfaces/ISelectable';
 import {
   BOARD_COLORS,
-  DEFAULT_COLOR_SCHEME,
+  DEFAULT_COLOR_SCHEME as _DEFAULT_COLOR_SCHEME,
   getContrastingTextColor,
 } from '../interfaces/IColorable';
+void _DEFAULT_COLOR_SCHEME;
 import { calculateConnectionPoints } from '../interfaces/IConnectable';
 import { generateUUID } from '@shared/utils/uuid';
 

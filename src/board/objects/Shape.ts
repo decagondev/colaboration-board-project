@@ -37,7 +37,8 @@ import {
   DEFAULT_SELECTION_STATE,
   HANDLE_CURSORS,
 } from '../interfaces/ISelectable';
-import { BOARD_COLORS, DEFAULT_COLOR_SCHEME } from '../interfaces/IColorable';
+import { BOARD_COLORS, DEFAULT_COLOR_SCHEME as _DEFAULT_COLOR_SCHEME } from '../interfaces/IColorable';
+void _DEFAULT_COLOR_SCHEME;
 import { calculateConnectionPoints } from '../interfaces/IConnectable';
 import { generateUUID } from '@shared/utils/uuid';
 import type { ShapeType } from '../shapes';

@@ -78,11 +78,11 @@ export function FrameComponent({
   const titleHeight = frame.showTitle ? FRAME_DEFAULTS.titleHeight : 0;
 
   /**
-   * Handle click events.
+   * Handle click events (mouse or touch).
    */
   const handleClick = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
-      onClick?.(frame.id, e);
+    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      onClick?.(frame.id, e as Konva.KonvaEventObject<MouseEvent>);
     },
     [frame.id, onClick]
   );

@@ -5,7 +5,7 @@
  * Follows Interface Segregation Principle by providing focused property editors.
  */
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, type JSX } from 'react';
 
 /**
  * Property change event data.

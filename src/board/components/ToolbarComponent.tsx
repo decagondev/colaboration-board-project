@@ -5,7 +5,7 @@
  * Allows users to select different tools for creating and manipulating objects.
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, type JSX } from 'react';
 import { ShapeFlyoutComponent } from './ShapeFlyoutComponent';
 import type { ShapeType } from '../shapes';
 

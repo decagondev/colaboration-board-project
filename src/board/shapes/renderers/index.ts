@@ -18,11 +18,15 @@ import { displayDefinition } from './DisplayRenderer';
 import { connectorShapeDefinition } from './ConnectorRenderer';
 import {
   basicShapeDefinitions,
-  rectangleDefinition,
-  ellipseDefinition,
-  triangleDefinition,
-  lineDefinition,
+  rectangleDefinition as _rectangleDefinition,
+  ellipseDefinition as _ellipseDefinition,
+  triangleDefinition as _triangleDefinition,
+  lineDefinition as _lineDefinition,
 } from './BasicShapeDefinitions';
+void _rectangleDefinition;
+void _ellipseDefinition;
+void _triangleDefinition;
+void _lineDefinition;
 import type { ShapeDefinition } from '../ShapeDefinition';
 
 /**

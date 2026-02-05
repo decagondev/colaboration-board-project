@@ -5,7 +5,7 @@
  * Handles Stage and Layer setup with responsive sizing and viewport culling.
  */
 
-import { useRef, useCallback, useMemo, useEffect, useState } from 'react';
+import { useRef, useCallback, useMemo, useEffect, useState, type JSX } from 'react';
 import { Stage, Layer, Rect, Ellipse, Group, Text, Line, Circle, RegularPolygon } from 'react-konva';
 import type Konva from 'konva';
 import type { Bounds, Size } from '@shared/types';
@@ -18,18 +18,12 @@ import { ShapeRegistry } from '../shapes';
 import type { ShapeType, ShapeRenderProps } from '../shapes';
 import type { ConnectorArrowStyle, ConnectorRouteStyle, ConnectorEndpoint } from '../objects/Connector';
 import type { Position } from '../interfaces/IBoardObject';
+import type { ViewportState } from '../hooks/useViewport';
 
 /**
- * Viewport state for canvas positioning and scaling.
+ * Re-export ViewportState from the canonical location.
  */
-export interface ViewportState {
-  /** X offset of the viewport */
-  x: number;
-  /** Y offset of the viewport */
-  y: number;
-  /** Current zoom scale (1 = 100%) */
-  scale: number;
-}
+export type { ViewportState } from '../hooks/useViewport';
 
 /**
  * Board object interface for rendering.
@@ -223,7 +217,7 @@ export function BoardCanvasComponent({
   const [lassoState, setLassoState] = useState<LassoState>({
     isActive: false,
     startPoint: null,
-    currentPoint: null,
+    endPoint: null,
     bounds: null,
   });
   const lassoStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -455,7 +449,7 @@ export function BoardCanvasComponent({
         setLassoState({
           isActive: true,
           startPoint: { x: canvasX, y: canvasY },
-          currentPoint: { x: canvasX, y: canvasY },
+          endPoint: { x: canvasX, y: canvasY },
           bounds: { x: canvasX, y: canvasY, width: 0, height: 0 },
         });
       }
@@ -492,7 +486,7 @@ export function BoardCanvasComponent({
         setLassoState({
           isActive: true,
           startPoint: start,
-          currentPoint: { x: canvasX, y: canvasY },
+          endPoint: { x: canvasX, y: canvasY },
           bounds: {
             x: minX,
             y: minY,
@@ -542,7 +536,7 @@ export function BoardCanvasComponent({
       setLassoState({
         isActive: false,
         startPoint: null,
-        currentPoint: null,
+        endPoint: null,
         bounds: null,
       });
       lassoStartRef.current = null;
@@ -552,9 +546,10 @@ export function BoardCanvasComponent({
   /**
    * Handle stage click for background deselection and object creation.
    * Provides both screen and canvas coordinates.
+   * Accepts both mouse and touch events for cross-device compatibility.
    */
   const handleStageClick = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>): void => {
+    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>): void => {
       if (objectClickedRef.current) {
         objectClickedRef.current = false;
         return;

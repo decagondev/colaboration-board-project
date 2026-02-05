@@ -16,7 +16,7 @@ export type {
 } from './useCanvasInteraction';
 
 export { useBoardState } from './useBoardState';
-export type { CreateObjectOptions, UseBoardStateReturn } from './useBoardState';
+export type { BoardCreateObjectOptions, UseBoardStateReturn } from './useBoardState';
 
 export { useSelection } from './useSelection';
 export type { UseSelectionReturn } from './useSelection';

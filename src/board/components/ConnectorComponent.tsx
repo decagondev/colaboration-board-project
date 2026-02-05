@@ -206,11 +206,11 @@ export function ConnectorComponent({
   }, [isSelected, colors.stroke]);
 
   /**
-   * Handle click on the connector.
+   * Handle click on the connector (mouse or touch).
    */
   const handleClick = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
-      onClick?.(connector.id, e);
+    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      onClick?.(connector.id, e as Konva.KonvaEventObject<MouseEvent>);
     },
     [connector.id, onClick]
   );

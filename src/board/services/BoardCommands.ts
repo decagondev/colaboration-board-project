@@ -442,6 +442,8 @@ export class DuplicateObjectsCommand extends BaseCommand {
     this._offset = offset;
     this._addToBoard = addToBoard;
     this._removeFromBoard = removeFromBoard;
+    void this._originalIds;
+    void this._offset;
 
     this._duplicatedObjects = originalObjects.map((obj) => {
       const clone = obj.clone();
@@ -587,7 +589,7 @@ export class ReorderObjectsCommand extends BaseCommand {
  */
 export class BatchCommand implements IBatchCommand {
   readonly id: string;
-  readonly type: CommandType = 'batch';
+  readonly type: 'batch' = 'batch';
   readonly description: string;
   readonly timestamp: number;
   readonly executedBy: string;

@@ -38,7 +38,8 @@ function CylinderRenderer(props: ShapeRenderProps): React.ReactElement {
   } = props;
 
   const ellipseHeight = height * ELLIPSE_HEIGHT_FACTOR;
-  const bodyHeight = height - ellipseHeight * 2;
+  const _bodyHeight = height - ellipseHeight * 2;
+  void _bodyHeight;
   const radiusX = width / 2;
   const radiusY = ellipseHeight;
 

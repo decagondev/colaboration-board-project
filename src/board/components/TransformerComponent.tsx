@@ -9,6 +9,18 @@ import { Transformer } from 'react-konva';
 import type Konva from 'konva';
 
 /**
+ * Bounding box type for transformer operations.
+ * Represents the transformed box dimensions and position.
+ */
+interface TransformerBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+}
+
+/**
  * Props for the TransformerComponent.
  */
 export interface TransformerComponentProps {
@@ -41,7 +53,7 @@ export interface TransformerComponentProps {
   /** Whether to flip on resize past zero */
   flipEnabled?: boolean;
   /** Bounding box function to limit transformer */
-  boundBoxFunc?: (oldBox: Konva.Box, newBox: Konva.Box) => Konva.Box;
+  boundBoxFunc?: (oldBox: TransformerBox, newBox: TransformerBox) => TransformerBox;
   /** Minimum width for resize */
   minWidth?: number;
   /** Minimum height for resize */
@@ -147,9 +159,9 @@ export function TransformerComponent({
   }, [nodes]);
 
   const defaultBoundBoxFunc = (
-    oldBox: Konva.Box,
-    newBox: Konva.Box
-  ): Konva.Box => {
+    oldBox: TransformerBox,
+    newBox: TransformerBox
+  ): TransformerBox => {
     if (Math.abs(newBox.width) < minWidth) {
       return oldBox;
     }

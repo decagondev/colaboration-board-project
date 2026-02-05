@@ -78,10 +78,12 @@ export function StickyNoteComponent({
   onDragStart,
   onDragEnd,
   onTransformEnd,
-  onContentChange,
+  onContentChange: _onContentChange,
   onEditStart,
-  onEditEnd,
+  onEditEnd: _onEditEnd,
 }: StickyNoteComponentProps): React.ReactElement {
+  void _onContentChange;
+  void _onEditEnd;
   const groupRef = useRef<Konva.Group>(null);
   const textRef = useRef<Konva.Text>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -90,12 +92,12 @@ export function StickyNoteComponent({
   const colors = note.colors;
 
   /**
-   * Handle click events.
+   * Handle click events (mouse or touch).
    */
   const handleClick = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
+    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       if (!isDragging) {
-        onClick?.(note.id, e);
+        onClick?.(note.id, e as Konva.KonvaEventObject<MouseEvent>);
       }
     },
     [note.id, onClick, isDragging]
@@ -183,12 +185,14 @@ export function StickyNoteComponent({
 
   /**
    * Determine cursor style.
+   * Currently unused but kept for future use when styling cursors.
    */
-  const getCursor = (): string => {
+  const _getCursor = (): string => {
     if (note.locked) return 'default';
     if (isEditing) return 'text';
     return 'move';
   };
+  void _getCursor;
 
   return (
     <Group

@@ -256,7 +256,7 @@ export class SelectionService implements ISelectionService {
    * @param mode - How to combine with existing selection
    * @returns The final lasso bounds
    */
-  endLasso(mode: SelectionMode = 'replace'): BoundingBox | null {
+  endLasso(_mode: SelectionMode = 'replace'): BoundingBox | null {
     const bounds = this._lassoState.bounds;
     this._lassoState = { ...DEFAULT_LASSO_STATE };
     return bounds;

@@ -5,7 +5,7 @@
  * Includes zoom in, zoom out, and reset to 100% functionality.
  */
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, type JSX } from 'react';
 
 /**
  * Props for the ZoomControlsComponent.

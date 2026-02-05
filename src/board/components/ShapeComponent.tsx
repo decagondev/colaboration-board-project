@@ -68,12 +68,12 @@ export function ShapeComponent({
   const transform = shape.transform;
 
   /**
-   * Handle click events.
+   * Handle click events (mouse or touch).
    */
   const handleClick = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
+    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       if (!isDragging) {
-        onClick?.(shape.id, e);
+        onClick?.(shape.id, e as Konva.KonvaEventObject<MouseEvent>);
       }
     },
     [shape.id, onClick, isDragging]

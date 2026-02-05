@@ -21,9 +21,10 @@ import type {
 } from '../interfaces/ISelectable';
 import type { IColorable, Color, ColorScheme } from '../interfaces/IColorable';
 import {
-  DEFAULT_MIN_SIZE,
+  DEFAULT_MIN_SIZE as _DEFAULT_MIN_SIZE,
   createDefaultTransform,
 } from '../interfaces/ITransformable';
+void _DEFAULT_MIN_SIZE;
 import {
   DEFAULT_SELECTION_STATE,
   HANDLE_CURSORS,
@@ -109,11 +110,7 @@ export class Frame
     this._locked = data.locked;
     this._visible = data.visible;
 
-    this._transform = createDefaultTransform();
-    this._transform.x = data.x;
-    this._transform.y = data.y;
-    this._transform.width = data.width;
-    this._transform.height = data.height;
+    this._transform = createDefaultTransform(data.x, data.y, data.width, data.height);
 
     this._selectionState = { ...DEFAULT_SELECTION_STATE };
 
@@ -446,11 +443,12 @@ export class Frame
   }
 
   resetTransform(): void {
-    this._transform = createDefaultTransform();
-    this._transform.x = this._position.x;
-    this._transform.y = this._position.y;
-    this._transform.width = this._size.width;
-    this._transform.height = this._size.height;
+    this._transform = createDefaultTransform(
+      this._position.x,
+      this._position.y,
+      this._size.width,
+      this._size.height
+    );
     this.markModified();
   }
 

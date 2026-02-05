@@ -10,7 +10,7 @@
 
 import { Circle, Rect, Group, Layer } from 'react-konva';
 import type Konva from 'konva';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type JSX } from 'react';
 import type { ConnectionAnchor } from '../interfaces/IConnectable';
 import type { RenderableObject } from './BoardCanvasComponent';
 

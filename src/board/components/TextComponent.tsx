@@ -195,12 +195,12 @@ export function TextComponent({
   })();
 
   /**
-   * Handle click events.
+   * Handle click events (mouse or touch).
    */
   const handleClick = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
+    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       if (!isDragging) {
-        onClick?.(text.id, e);
+        onClick?.(text.id, e as Konva.KonvaEventObject<MouseEvent>);
       }
     },
     [text.id, onClick, isDragging]

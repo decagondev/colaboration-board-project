@@ -22,14 +22,16 @@ import type {
 import type { IEditable, EditMode } from '../interfaces/IEditable';
 import type { IColorable, Color, ColorScheme } from '../interfaces/IColorable';
 import {
-  DEFAULT_MIN_SIZE,
+  DEFAULT_MIN_SIZE as _DEFAULT_MIN_SIZE,
   createDefaultTransform,
 } from '../interfaces/ITransformable';
 import {
   DEFAULT_SELECTION_STATE,
   HANDLE_CURSORS,
 } from '../interfaces/ISelectable';
-import { BOARD_COLORS, DEFAULT_COLOR_SCHEME } from '../interfaces/IColorable';
+import { BOARD_COLORS, DEFAULT_COLOR_SCHEME as _DEFAULT_COLOR_SCHEME } from '../interfaces/IColorable';
+void _DEFAULT_MIN_SIZE;
+void _DEFAULT_COLOR_SCHEME;
 import { generateUUID } from '@shared/utils/uuid';
 
 /**
@@ -138,11 +140,7 @@ export class StandaloneText
     this._locked = data.locked;
     this._visible = data.visible;
 
-    this._transform = createDefaultTransform();
-    this._transform.x = data.x;
-    this._transform.y = data.y;
-    this._transform.width = data.width;
-    this._transform.height = data.height;
+    this._transform = createDefaultTransform(data.x, data.y, data.width, data.height);
 
     this._selectionState = { ...DEFAULT_SELECTION_STATE };
     this._editMode = 'view';
@@ -455,11 +453,12 @@ export class StandaloneText
   }
 
   resetTransform(): void {
-    this._transform = createDefaultTransform();
-    this._transform.x = this._position.x;
-    this._transform.y = this._position.y;
-    this._transform.width = this._size.width;
-    this._transform.height = this._size.height;
+    this._transform = createDefaultTransform(
+      this._position.x,
+      this._position.y,
+      this._size.width,
+      this._size.height
+    );
     this.markModified();
   }
 
@@ -566,15 +565,19 @@ export class StandaloneText
     return this._editMode;
   }
 
-  startEditing(): void {
+  startEditing(): boolean {
     if (!this._locked) {
-      this._editMode = 'editing';
+      this._editMode = 'edit';
       this._originalContent = this._content;
+      return true;
     }
+    return false;
   }
 
-  finishEditing(): void {
+  finishEditing(): boolean {
+    const wasEditing = this._editMode === 'edit';
     this._editMode = 'view';
+    return wasEditing;
   }
 
   cancelEditing(): void {
@@ -583,7 +586,7 @@ export class StandaloneText
   }
 
   updateContent(content: string): void {
-    if (this._editMode === 'editing') {
+    if (this._editMode === 'edit') {
       this._content = content;
       this.markModified();
     }
@@ -595,7 +598,7 @@ export class StandaloneText
 
   hasUnsavedChanges(): boolean {
     return (
-      this._content !== this._originalContent && this._editMode === 'editing'
+      this._content !== this._originalContent && this._editMode === 'edit'
     );
   }
 

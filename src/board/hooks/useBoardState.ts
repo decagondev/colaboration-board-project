@@ -19,9 +19,10 @@ import type { ViewportState } from './useViewport';
 import { generateUUID } from '@shared/utils/uuid';
 
 /**
- * Options for creating a new board object.
+ * Options for creating a new board object via the board state hook.
+ * Different from ObjectFactory.CreateObjectOptions which uses Position/Size types.
  */
-export interface CreateObjectOptions {
+export interface BoardCreateObjectOptions {
   /** Object type */
   type: string;
   /** Position X */
@@ -86,7 +87,7 @@ export interface UseBoardStateReturn {
     /** Create a new object */
     create: (object: SyncableObject) => Promise<SyncResult>;
     /** Create with auto-generated ID */
-    createNew: (options: CreateObjectOptions) => Promise<SyncResult>;
+    createNew: (options: BoardCreateObjectOptions) => Promise<SyncResult>;
     /** Update an object */
     update: (id: string, update: ObjectUpdate) => Promise<SyncResult>;
     /** Delete an object */
@@ -163,7 +164,7 @@ export function useBoardState(): UseBoardStateReturn {
    * Create a new object with auto-generated ID and timestamps.
    */
   const createNew = useCallback(
-    async (options: CreateObjectOptions): Promise<SyncResult> => {
+    async (options: BoardCreateObjectOptions): Promise<SyncResult> => {
       const now = Date.now();
       const object: SyncableObject = {
         id: generateUUID(),

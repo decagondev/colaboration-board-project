@@ -5,7 +5,7 @@
  * Implements Single Responsibility Principle - only handles shape selection UI.
  */
 
-import React, { useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useCallback, useMemo, useRef, useEffect, type JSX } from 'react';
 import type { ShapeType, ShapeCategory, ShapeDefinition } from '../shapes';
 import { ShapeRegistry } from '../shapes';
 
